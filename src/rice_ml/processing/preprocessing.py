@@ -1,27 +1,3 @@
-"""
-Preprocessing utilities for machine learning (NumPy-only).
-
-This module implements common scaling/normalization routines and dataset
-splitting helpers using NumPy only, with robust error handling and
-NumPy-style docstrings designed to be testable via doctest.
-
-Functions
---------
-standardize
-    Z-score standardization (feature-wise).
-minmax_scale
-    Feature-wise min-max scaling to a given range
-maxabs_scale
-    Feature-wise scaling by max absolute value.
-l1_normalize_rows
-    Row-wise L1 normalization.
-l2_normalize_rows
-    Row-wise L2 normalization.
-train_test_split
-    Split dataset into training and testing sets.
-train_val_test_split
-    Split dataset into training, validation, and testing sets.
-"""
 from __future__ import annotations
 
 from typing import Optional, Sequence, Tuple, Union, List
@@ -40,7 +16,7 @@ __all__ = [
 
 ArrayLike = Union[np.ndarray, Sequence[float], Sequence[Sequence[float]]]
 
-# ---- Internal Validation Helper  ---- #
+# ---- Internal Validation Helper ---- #
 
 def _check_for_nan_inf(arr: np.ndarray, name: str) -> None:
     """Check for NaN and Inf values and raise ValueError."""
@@ -65,7 +41,6 @@ def _ensure_2d_numeric(X: ArrayLike, name: str = "X") -> np.ndarray:
     if arr.size == 0:
         raise ValueError(f"{name} must be non-empty.")
 
-     # New safety check
     _check_for_nan_inf(arr, name)
 
     return arr
@@ -77,20 +52,16 @@ def _ensure_1d_vector(y: Optional[ArrayLike], name: str = "y") -> Optional[np.nd
     arr = np.asarray(y)
     if arr.ndim != 1:
         raise ValueError(f"{name} must be a 1D array; got {arr.ndim}D.")
-    # Do not check for NaN/Inf here as 'y' can be non-numeric labels for stratify.
     return arr
 
 def _check_Xy_shapes(X: np.ndarray, y: Optional[np.ndarray]) -> None:
-    # Original logic is sound.
     if y is not None and len(y) != X.shape[0]:
         raise ValueError(
             f"X and y must have compatible first dimension; got len(y)={len(y)} "
             f"and X.shape[0]={X.shape[0]}."
         )
 
-
 def _rng_from_seed(random_state: Optional[int]) -> np.random.Generator:
-    # Original logic is sound.
     if random_state is None:
         return np.random.default_rng()
     if not (isinstance(random_state, (int, np.integer))):
@@ -110,7 +81,8 @@ def standardize(
     Z-score standardization (feature-wise).
 
     Each feature column is transformed to `(X - mean) / std` when enabled.
-    Columns with zero variance are left at 0 when `with_std=True`.
+    Columns with zero variance are centered (if `with_mean=True`) but not scaled, 
+    and the corresponding scaling factor returned in `params` is 1.0.
 
     Parameters
     ----------
@@ -132,12 +104,12 @@ def standardize(
     params : dict, optional
         Only if `return_params=True`. Contains:
         - 'mean': ndarray of shape (n_features,)
-        - 'scale': ndarray of shape (n_features,)
+        - 'scale': ndarray of shape (n_features,) (std; 1.0 where std=0)
 
     Raises
     ------
     ValueError
-        If X is not 2D or is empty.
+        If X is not 2D or is empty, or contains NaN/Inf.
     TypeError
         If X contains non-numeric values.
 
@@ -146,17 +118,16 @@ def standardize(
     >>> import numpy as np
     >>> X = np.array([[1., 2.], [3., 2.], [5., 2.]])
     >>> Z, params = standardize(X, return_params=True)
-    >>> Z.mean(axis=0).round(7).tolist()  # centered (second col zero-variance)
+    >>> Z.mean(axis=0).round(7).tolist()
     [0.0, 0.0]
-    >>> params["scale"].tolist()  # std of second column is 0 -> scale 1 used to avoid divide-by-zero
-    [1.632993161855452, 1.0]
+    >>> params["scale"].round(7).tolist()
+    [1.6329932, 1.0]
     """
     X = _ensure_2d_numeric(X, "X")
     mean = X.mean(axis=0) if with_mean else np.zeros(X.shape[1], dtype=float)
     Xc = X - mean if with_mean else X.copy()
 
     if with_std:
-        # ddof-safe std; for zero std columns, use scale=1 to avoid division by zero
         std = Xc.std(axis=0, ddof=ddof)
         scale = std.copy()
         scale[scale == 0.0] = 1.0
@@ -177,14 +148,18 @@ def minmax_scale(
     return_params: bool = False,
 ) -> Union[np.ndarray, Tuple[np.ndarray, dict]]:
     """
-    Scale features to a specified range (feature-wise).
+    Scale features to a specified range (feature-wise). 
+
+    The transformation is: `X_scaled = (X - min) / (max - min) * (max' - min') + min'`.
+    Columns with zero range (`max - min = 0`) are mapped to the minimum value of 
+    `feature_range`.
 
     Parameters
     ----------
     X : array_like, shape (n_samples, n_features)
         Input matrix.
     feature_range : tuple(float, float), default=(0.0, 1.0)
-        Desired value range for each feature.
+        Desired value range for each feature (min', max').
     return_params : bool, default=False
         If True, also return a dict with keys ``min`` and ``scale``.
 
@@ -194,13 +169,14 @@ def minmax_scale(
         Scaled array.
     params : dict, optional
         Only if `return_params=True`. Contains:
-        - 'min': ndarray of shape (n_features,)
-        - 'scale': ndarray of shape (n_features,) (difference max-min; zero replaced by 1)
+        - 'min': ndarray of shape (n_features,) (original min)
+        - 'scale': ndarray of shape (n_features,) (original max-min; 1.0 where range=0)
+        - 'feature_range': tuple(float, float) (the requested range)
 
     Raises
     ------
     ValueError
-        If X is not 2D or empty, or if feature_range is invalid.
+        If X is not 2D, empty, or feature_range is invalid.
     TypeError
         If X contains non-numeric values.
 
@@ -211,7 +187,7 @@ def minmax_scale(
     >>> X2, params = minmax_scale(X, feature_range=(0, 1), return_params=True)
     >>> X2[:, 0].tolist()
     [0.0, 0.5, 1.0]
-    >>> X2[:, 1].tolist()  # zero range column -> all mapped to lower bound
+    >>> X2[:, 1].tolist()
     [0.0, 0.0, 0.0]
     >>> params["scale"].tolist()
     [10.0, 1.0]
@@ -231,8 +207,9 @@ def minmax_scale(
     Xmax = X.max(axis=0)
     range_ = Xmax - Xmin
     scale = range_.copy()
-    scale[scale == 0.0] = 1.0  # avoid divide-by-zero
-
+    scale[scale == 0.0] = 1.0
+    
+    # Transformation steps
     X01 = (X - Xmin) / scale
     X_out = X01 * (fr_max - fr_min) + fr_min
 
@@ -249,13 +226,15 @@ def maxabs_scale(
     """
     Scale features by their maximum absolute value (feature-wise).
 
+    The transformation is: `X_scaled = X / max(|X|)`.
+    Columns that contain all zeros are left unchanged (effectively divided by 1).
+
     Parameters
     ----------
     X : array_like, shape (n_samples, n_features)
         Input matrix.
     return_params : bool, default=False
-        If True, also return a dict with key ``scale`` (= max abs per feature,
-        zeros replaced by 1).
+        If True, also return a dict with key ``scale``.
 
     Returns
     -------
@@ -263,12 +242,12 @@ def maxabs_scale(
         Scaled array.
     params : dict, optional
         Only if `return_params=True`. Contains:
-        - 'scale': ndarray of shape (n_features,)
+        - 'scale': ndarray of shape (n_features,) (max abs per feature; 1.0 where max abs=0)
 
     Raises
     ------
     ValueError
-        If X is not 2D or empty.
+        If X is not 2D, empty, or contains NaN/Inf.
     TypeError
         If X contains non-numeric values.
 
@@ -279,7 +258,7 @@ def maxabs_scale(
     >>> X2, params = maxabs_scale(X, return_params=True)
     >>> X2[:, 0].tolist()
     [-1.0, 0.5, 1.0]
-    >>> X2[:, 1].tolist()  # zero column -> unchanged (div by 1)
+    >>> X2[:, 1].tolist()
     [0.0, 0.0, 0.0]
     >>> params["scale"].tolist()
     [2.0, 1.0]
@@ -294,61 +273,63 @@ def maxabs_scale(
     return X_out
 
 
-def l2_normalize_rows(X: ArrayLike, *, eps: float = 1e-12) -> np.ndarray:
+def l1_normalize_rows(X: ArrayLike, *, eps: float = 1e-12) -> np.ndarray:
     """
-    Row-wise L2 normalization.
+    Row-wise L1 normalization (sum of absolute values = 1).
 
-    Each row x is replaced by x / max(||x||_2, eps).
+    Each row x is replaced by x / max(||x||_1, eps). Rows containing all zeros 
+    remain zero.
 
     Parameters
     ----------
     X : array_like, shape (n_samples, n_features)
         Input matrix.
     eps : float, default=1e-12
-        Floor value to avoid division by zero.
+        Floor value to avoid division by zero when the L1 norm is zero.
 
     Returns
     -------
     X_out : ndarray of shape (n_samples, n_features)
-        Row-wise L2-normalized array.
+        Row-wise L1-normalized array.
 
     Raises
     ------
     ValueError
-        If X is not 2D or empty, or eps <= 0.
+        If X is not 2D, empty, or eps <= 0.
     TypeError
         If X contains non-numeric values.
 
     Examples
     --------
     >>> import numpy as np
-    >>> X = np.array([[3., 4.], [0., 0.]])
-    >>> Xn = l2_normalize_rows(X)
-    >>> np.allclose(np.linalg.norm(Xn[0]), 1.0)
-    True
-    >>> Xn[1].tolist()  # zero row stays zero
-    [0.0, 0.0]
+    >>> X = np.array([[1., 2., 3.], [0., 0., 0.]])
+    >>> Xn = l1_normalize_rows(X)
+    >>> Xn[0].sum().round(7)
+    1.0
+    >>> Xn[1].tolist()
+    [0.0, 0.0, 0.0]
     """
     if eps <= 0:
         raise ValueError("eps must be > 0.")
     X = _ensure_2d_numeric(X, "X")
-    # L1 norm is the sum of abs values of the elements
+    # L1 norm (sum of absolute values)
     norms = np.sum(np.abs(X), axis=1)
     denom = np.maximum(norms, eps)[:, None]
     return X / denom
 
 def l2_normalize_rows(X: ArrayLike, *, eps: float = 1e-12) -> np.ndarray:
     """
-    Row-wise L2 normalization.
+    Row-wise L2 normalization (Euclidean norm = 1). 
 
-    Each row x is replaced by x / max(||x||_2, eps).
+    Each row x is replaced by x / max(||x||_2, eps). Rows containing all zeros 
+    remain zero.
 
     Parameters
     ----------
     X : array_like, shape (n_samples, n_features)
         Input matrix.
     eps : float, default=1e-12
-        Floor value to avoid division by zero.
+        Floor value to avoid division by zero when the L2 norm is zero.
 
     Returns
     -------
@@ -358,7 +339,7 @@ def l2_normalize_rows(X: ArrayLike, *, eps: float = 1e-12) -> np.ndarray:
     Raises
     ------
     ValueError
-        If X is not 2D or empty, or eps <= 0.
+        If X is not 2D, empty, or eps <= 0.
     TypeError
         If X contains non-numeric values.
 
@@ -369,13 +350,13 @@ def l2_normalize_rows(X: ArrayLike, *, eps: float = 1e-12) -> np.ndarray:
     >>> Xn = l2_normalize_rows(X)
     >>> np.allclose(np.linalg.norm(Xn[0]), 1.0)
     True
-    >>> Xn[1].tolist()  # zero row stays zero
+    >>> Xn[1].tolist()
     [0.0, 0.0]
     """
     if eps <= 0:
         raise ValueError("eps must be > 0.")
     X = _ensure_2d_numeric(X, "X")
-    # L2 norm is the sqrt of sum of squares of the elements
+    # L2 norm (sqrt of sum of squares)
     norms = np.sqrt(np.sum(X ** 2, axis=1))
     denom = np.maximum(norms, eps)[:, None]
     return X / denom
@@ -384,42 +365,31 @@ def l2_normalize_rows(X: ArrayLike, *, eps: float = 1e-12) -> np.ndarray:
 
 def _stratified_indices(y: np.ndarray, split_size: float, rng: np.random.Generator):
     """
-    Return train/test indices with class-wise proportional sampling.
-    Parameters
-    ----------
-    stratify: 1D ndarray (can be non-numeric)
-        Labels used  for stratification.
-    split_size: float
-        Proportion of data to allocate to the second split(e.g., test set.)
-    rng: np.random.Generator
-        Random number generator for reproducibility.
-    
-    Returns
-    -------
-    split1_idx, split2_idx: np.ndarray
-        Indices for the two splits.
+    Internal helper to return train/test indices with class-wise proportional sampling.
     """
-    # y may be strings/objects; we group by unique values
     classes, y_indices = np.unique(y, return_inverse=True)
     split1_idx: List[int] = []
     split2_idx: List[int] = []
+    
     for cls in range(len(classes)):
         cls_indices = np.flatnonzero(y_indices == cls)
         rng.shuffle(cls_indices)
         n_total = len(cls_indices)
-        # calculate split count. ensure each split gets at least 1 index if possible, unless the class size is 0 or 1. 
+        
         n_split2 = int(round(split_size * n_total))
+        
+        # Ensure splits are non-empty for classes with > 1 sample
         if n_total > 1:
             n_split2 = min(max(n_split2, 1), n_total - 1)
         elif n_total == 1:
-            # With one sample, test_size can't really be met.
-            # We arbitrarily assign it to split1 (train) to maintain stratified integrity.
-            # and prevent a 1-sample class from creating a 1-sample test set.
-            # Forcing n_split2 to 0 is more robust here.
+            # Single sample class is assigned entirely to split1 (train)
             n_split2 = 0
+            
         split2_idx.extend(cls_indices[:n_split2])
         split1_idx.extend(cls_indices[n_split2:])
+        
     return np.array(split1_idx), np.array(split2_idx)
+
 
 def train_test_split(
     X: ArrayLike,
@@ -462,7 +432,7 @@ def train_test_split(
     Raises
     ------
     ValueError
-        If input shapes are invalid, or test_size is not in (0, 1), or stratify has wrong shape.
+        If input shapes are invalid, or test_size is not in (0, 1).
     TypeError
         If random_state is not an int or None.
     """
@@ -512,6 +482,10 @@ def train_val_test_split(
     """
     Split arrays into train, validation, and test subsets.
 
+    The split is performed in two stages:
+    1. The data is split into a Remainder (Train + Validation) set and a Test set.
+    2. The Remainder set is then split into the final Train and Validation sets.
+
     Parameters
     ----------
     X : array_like, shape (n_samples, n_features)
@@ -519,9 +493,9 @@ def train_val_test_split(
     y : array_like, shape (n_samples,), optional
         Target vector. If provided, is split in the same way as X.
     val_size : float, default=0.1
-        Proportion of the dataset for the validation split (0 < val_size < 1).
+        Proportion of the *total* dataset for the validation split (0 < val_size < 1).
     test_size : float, default=0.2
-        Proportion of the dataset for the test split (0 < test_size < 1).
+        Proportion of the *total* dataset for the test split (0 < test_size < 1).
     shuffle : bool, default=True
         Whether to shuffle before splitting (ignored when stratify is provided).
     stratify : array_like, optional
@@ -540,7 +514,7 @@ def train_val_test_split(
     Raises
     ------
     ValueError
-        If sizes are invalid or shapes mismatch.
+        If sizes are invalid, shapes mismatch, or `val_size + test_size >= 1.0`.
     TypeError
         If random_state is not an int or None.
     """
@@ -548,10 +522,8 @@ def train_val_test_split(
         raise ValueError("val_size and test_size must be floats in (0, 1).")
     if val_size + test_size >= 1.0:
         raise ValueError("val_size + test_size must be < 1.0.")
-    # Step 1: Split into Test and Remainder (Train + Validation)
-    # Pass the original random_state here for reproducibility for the first split.
-    # For the second split, use the RNG instance to ensure subsequent calls are different if the user calls the split functions independently.
-    
+
+    # 1. Split into Remainder (Train + Validation) and Test
     split1_out = train_test_split(
         X,
         y,
@@ -560,32 +532,42 @@ def train_val_test_split(
         stratify=stratify,
         random_state=random_state,
     )
+    
     if y is None:
         X_rem, X_test = split1_out
+        y_rem = None
     else:
         X_rem, X_test, y_rem, y_test = split1_out
-    
-    # Recalculate validation size relative to the remaining data
-    # val_prop_remaining = val_size / (1 - test_size)
+
+    # Handle edge case where remainder is empty
     if X_rem.shape[0] == 0:
         X_train, X_val = X_rem, X_rem
-        y_train, y_val = (y_rem, y_rem)
+        y_train, y_val = y_rem, y_rem
     else:
+        # 2. Recalculate validation size relative to the REMAINING data
+        # val_prop_remaining = val_size / (1 - test_size)
         val_prop_remaining = val_size / (1.0 - test_size)
-        # Step 2: Split Remainder into Train and Validation
+        
+        # Prepare the stratification vector for the remaining data
+        # If stratify was provided, the corresponding labels in y_rem are used for the second split's stratification
+        stratify_rem = y_rem if stratify is not None else None
+        
+        # 3. Split Remainder into Train and Validation
         split2_out = train_test_split(
             X_rem,
-            y_rem if y is not None else None,
+            y_rem,
             test_size=val_prop_remaining,
             shuffle=shuffle,
-            stratify=stratify[y_rem.index] if stratify is not None else None,
+            stratify=stratify_rem, 
             random_state=random_state,
-            )
+        )
+        
         if y is None:
             X_train, X_val = split2_out
             y_train, y_val = None, None
         else:
             X_train, X_val, y_train, y_val = split2_out
+
     if y is None:
         return X_train, X_val, X_test
 
