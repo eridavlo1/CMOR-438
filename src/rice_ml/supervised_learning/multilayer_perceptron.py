@@ -1,51 +1,20 @@
 import numpy as np
 from typing import List, Optional, Tuple, Union, Sequence, Any
 import warnings
-
-# --- Missing Definitions Added for standalone execution ---
-
-ArrayLike = Union[np.ndarray, Sequence[Any]]
-
-def _check_for_nan_inf(arr: np.ndarray, name: str) -> None:
-    """Check for NaN and Inf values (simplified helper)."""
-    if np.isnan(arr).any():
-        raise ValueError(f"Input array {name} contains NaN values. Please handle missing data.")
-    if np.isinf(arr).any():
-        raise ValueError(f"Input array {name} contains Infinite values. Please handle extreme data.")
-
-def _ensure_2d_numeric(X: ArrayLike, name: str = "X") -> np.ndarray:
-    """
-    Ensure X is a 2D numeric NumPy array. 
-    (Simplified version from pre_processing.py for dependency resolution)
-    """
-    arr = np.asarray(X)
-    if arr.ndim == 1:
-        arr = arr.reshape(-1, 1) # Handle 1D input by reshaping to (n, 1)
-    if arr.ndim != 2:
-        raise ValueError(f"{name} must be a 2D array; got {arr.ndim}D.")
-    
-    if not np.issubdtype(arr.dtype, np.number):
-        try:
-            arr = arr.astype(float, copy=False)
-        except (TypeError, ValueError) as e:
-            raise TypeError(f"All elements of {name} must be numeric.") from e
-    else:
-        arr = arr.astype(float, copy=False)
-
-    if arr.size == 0:
-        raise ValueError(f"{name} must be non-empty.")
-    
-    _check_for_nan_inf(arr, name)
-
-    return arr
-
-# --- MLPBinaryClassifier Class (Original Code Follows) ---
+from .utils.validation import ArrayLike, ensure_2d_numeric 
 
 class MLPBinaryClassifier:
     """
     Multilayer Perceptron (MLP) for Binary Classification using Batch Gradient Descent.
+
+    Architecture: Input -> (Hidden Layers with ReLU) -> Output (Sigmoid)
+    Loss: Binary Cross-Entropy (Log Loss)
+    Optimization: Batch Gradient Descent with Backpropagation
     
-        """
+    Parameters
+    ----------
+    # ... (parameters remain the same) ...
+    """
     def __init__(self, hidden_layer_sizes: Tuple[int, ...] = (100,), eta: float = 0.01, 
                  epochs: int = 100, random_state: Optional[int] = None):
         self.hidden_layer_sizes = hidden_layer_sizes
@@ -58,7 +27,7 @@ class MLPBinaryClassifier:
         self.n_layers: int = 0
         self.classes_: Optional[np.ndarray] = None
 
-    # --- Activation Functions and Derivatives ---
+    # --- Activation Functions and Derivatives (No changes) ---
 
     def _relu(self, Z: np.ndarray) -> np.ndarray:
         """Rectified Linear Unit (ReLU) activation: max(0, Z)."""
@@ -93,16 +62,12 @@ class MLPBinaryClassifier:
         for L in range(self.n_layers):
             n_in = layer_sizes[L]
             n_out = layer_sizes[L+1]
-            
-            # He-like initialization for ReLU layers
             scale = np.sqrt(2.0 / n_in)
-            
-            # W includes the bias unit W[l][n_in, :]
             W = rng.standard_normal(size=(n_in + 1, n_out)) * scale 
             self.weights_.append(W)
 
 
-    # --- Forward Propagation ---
+    # --- Forward Propagation (No changes) ---
 
     def _forward_propagate(self, X: np.ndarray) -> Tuple[List[np.ndarray], List[np.ndarray]]:
         """
@@ -129,7 +94,7 @@ class MLPBinaryClassifier:
         
         return A, Z
     
-    # --- Cost Function ---
+    # --- Cost Function (No changes) ---
     
     def _cost(self, A_out: np.ndarray, y: np.ndarray, eps: float = 1e-15) -> float:
         """Calculates the Binary Cross-Entropy Loss (Log Loss)."""
@@ -139,39 +104,27 @@ class MLPBinaryClassifier:
         loss = - (y * np.log(y_pred) + (1 - y) * np.log(1 - y_pred))
         return float(np.sum(loss) / n_samples)
 
-    # --- Backpropagation (Core Training Logic) ---
+    # --- Backpropagation (No changes) ---
     
     def _backpropagate(self, A: List[np.ndarray], Z: List[np.ndarray], y: np.ndarray) -> List[np.ndarray]:
         """
         Performs the backward pass to calculate gradients for all weights.
         """
         n_samples = y.shape[0]
-        # Initialize gradient list (dW[L] stores the gradient for W[L])
         dW: List[np.ndarray] = [np.empty(0)] * self.n_layers 
-        # Deltas/errors for each layer (Delta[L] is error for layer L)
         deltas: List[np.ndarray] = [np.empty(0)] * (self.n_layers + 1)
         
-        # 1. Output Layer (L = n_layers)
+        # 1. Output Layer
         A_out = A[-1]
-        deltas[-1] = A_out - y.reshape(-1, 1) # Delta[out] = A[out] - y
-        
-        # Gradient for output weights W[n_layers-1]: dW[out] = A[last_hidden]_biased.T @ Delta[out]
+        deltas[-1] = A_out - y.reshape(-1, 1)
         A_last_hidden_biased = self._add_bias_unit(A[-2], how='col')
         dW[self.n_layers - 1] = A_last_hidden_biased.T @ deltas[-1] / n_samples
         
-        # 2. Hidden Layers (L = n_layers - 1 down to 1)
+        # 2. Hidden Layers
         for L in range(self.n_layers - 1, 0, -1):
-            # Step 1: Compute the error signal propagating back
-            # W_no_bias excludes the bias row (W[-1, :]) which is not used for backpropagation
             W_no_bias = self.weights_[L][:-1, :]
-            
-            # error_prop = Delta[L+1] @ W[L]_no_bias.T (weighted sum of errors)
             error_prop = deltas[L+1] @ W_no_bias.T
-
-            # Step 2: Apply the derivative of the activation function (ReLU)
             deltas[L] = error_prop * self._relu_derivative(Z[L])
-            
-            # Step 3: Compute the gradient for W[L-1]
             A_prev_biased = self._add_bias_unit(A[L-1], how='col')
             dW[L-1] = A_prev_biased.T @ deltas[L] / n_samples
             
@@ -183,8 +136,8 @@ class MLPBinaryClassifier:
         """
         Trains the MLP using batch gradient descent and backpropagation.
         """
-        # Uses the newly defined helper function to validate/prepare input
-        X_arr = _ensure_2d_numeric(X)
+        # --- UPDATE 1: Use imported validation function ---
+        X_arr = ensure_2d_numeric(X)
         y_arr = np.asarray(y).astype(float)
         
         if len(np.unique(y_arr)) != 2:
@@ -198,13 +151,10 @@ class MLPBinaryClassifier:
 
         self.cost_history_ = []
         for epoch in range(self.epochs):
-            
             A, Z = self._forward_propagate(X_arr)
             A_out = A[-1]
-            
             cost = self._cost(A_out, y_arr)
             self.cost_history_.append(cost)
-            
             dW = self._backpropagate(A, Z, y_arr)
             
             for L in range(self.n_layers):
@@ -220,7 +170,8 @@ class MLPBinaryClassifier:
         """
         Predicts the probability of belonging to class 1.
         """
-        X_arr = _ensure_2d_numeric(X)
+        # --- UPDATE 2: Use imported validation function ---
+        X_arr = ensure_2d_numeric(X)
         
         A, _ = self._forward_propagate(X_arr)
         
