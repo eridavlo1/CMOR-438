@@ -1,131 +1,208 @@
 import numpy as np
+import warnings
+from typing import Optional, Union, Sequence, List, Callable, Tuple, Literal 
+from rice_ml.post_processing import log_loss, roc_auc_score
 
 class LogisticRegression:
     """
-    Binary Logistic Regression classifier implemented using Gradient Descent (GD).
+    Binary Logistic Regression classifier using Batch Gradient Descent.
 
-    This model estimates the probability of a binary outcome (0 or 1) by fitting 
-    a linear function to the data and passing the result through the sigmoid function.
-
+    Model Capabilities
+    ------------------
+    - Binary classification (labels {0,1})
+    - L2 regularization (Ridge) controlled by 'C' (inverse of alpha)
+    - Optional intercept term
+    - Gradient descent optimizer with convergence checks
+    
     Parameters
     ----------
-    eta : float
-        The learning rate (step size) for gradient descent (between 0.0 and 1.0).
-        Default is 0.01.
-    epochs : int
-        The number of training iterations (passes over the entire training set).
-        Default is 1000.
-    random_state : int, optional
-        Seed for the random number generator used for initial weight and bias initialization.
-        Default is None.
-    
+    C : float, default=1.0
+        Inverse of regularization strength (lambda). Must be positive.
+    eta : float, default=0.01
+        Learning rate for Gradient Descent.
+    epochs : int, default=1000
+        Maximum number of iterations.
+    tol : float, default=1e-4
+        Tolerance for convergence check (stops if cost change < tol).
+    fit_intercept : bool, default=True
+        Specifies whether to include the bias/intercept term.
+    random_state : Optional[int], default=None
+        Seed for weight and bias initialization.
+        
     Attributes
     ----------
     w_ : 1d-array
         Optimized weight vector (coefficients) after fitting.
     b_ : float
-        Optimized bias term (intercept) after fitting.
-    cost_history_ : list
-        The value of the Cost function (Binary Cross-Entropy) after each epoch.
+        Optimized bias term (intercept) after fitting (0.0 if fit_intercept=False).
+    cost_history_ : List[float]
+        Binary Cross-Entropy loss calculated after each epoch.
     """
-    def __init__(self, eta=0.01, epochs=1000, random_state=None):
+    def __init__(self, C: float = 1.0, eta: float = 0.01, epochs: int = 1000, 
+                 tol: float = 1e-4, fit_intercept: bool = True, random_state: Optional[int] = None):
+        
+        if C <= 0:
+            raise ValueError("C (Inverse of regularization strength) must be positive.")
+            
+        self.C = C
         self.eta = eta
         self.epochs = epochs
+        self.tol = tol
+        self.fit_intercept = fit_intercept
         self.random_state = random_state
         
-        # Attributes initialized during fitting
-        self.w_ = None
-        self.b_ = None
-        self.cost_history_ = []
+        self.w_: Optional[np.ndarray] = None
+        self.b_: float = 0.0
+        self.cost_history_: List[float] = []
+        self.n_iter_: int = 0
+        self.classes_: Optional[np.ndarray] = None
+        
+        self._lambda = 1.0 / C
 
-    def _sigmoid(self, z):
-        """
-        The Sigmoid (or Logistic) activation function.
-        f(z) = 1 / (1 + exp(-z))
-        """
-        # Clips the input to prevent overflow in exp(-z) for very large negative z
-        z_clipped = np.clip(z, -500, 500)
-        return 1.0 / (1.0 + np.exp(-z_clipped))
+    def _sigmoid(self, Z: np.ndarray) -> np.ndarray:
+        """Sigmoid activation: 1 / (1 + exp(-Z))."""
+        Z_clipped = np.clip(Z, -500, 500)
+        return 1.0 / (1.0 + np.exp(-Z_clipped))
 
-    def _net_input(self, X):
+    def decision_function(self, X: Union[np.ndarray, Sequence]) -> np.ndarray:
         """
-        Calculates the net input, z = X * w + b.
-        """
-        if X.ndim == 1:
-             # Handle single sample input
-            return np.dot(X, self.w_) + self.b_
-        return np.dot(X, self.w_) + self.b_
-
-    def fit(self, X, y):
-        """
-        Trains the Logistic Regression model using Gradient Descent.
-
-        Parameters
-        ----------
-        X : {array-like}, shape = [n_samples, n_features]
-            Training vectors (features).
-        y : {array-like}, shape = [n_samples]
-            Target values, must be binary and encoded as {0, 1}.
-
+        Calculates the linear combination (net input): z = X * w + b.
+        
         Returns
         -------
-        self : object
+        z : np.ndarray, shape (n_samples,)
+            The decision function value.
         """
+        if self.w_ is None:
+            raise RuntimeError("Model is not fitted.")
+            
+        X_arr = np.atleast_2d(X)
+        if X_arr.shape[1] != self.w_.shape[0]:
+            raise ValueError("Input features mismatch fitted model.")
+            
+        return X_arr @ self.w_ + self.b_
+
+    def _cost(self, y_prob: np.ndarray, y_true: np.ndarray) -> float:
+        """
+        Calculates the Binary Cross-Entropy Loss with L2 Regularization.
+        """
+        n_samples = y_true.shape[0]
+        
+        eps = 1e-15
+        y_prob_clipped = np.clip(y_prob, eps, 1 - eps)
+        log_loss_term = - (y_true @ np.log(y_prob_clipped) + (1 - y_true) @ np.log(1 - y_prob_clipped)) / n_samples
+        
+        # L2 Regularization Term (excludes bias 'b') 
+        if self._lambda > 0 and self.w_ is not None:
+            l2_term = (self._lambda / 2.0) * np.sum(self.w_**2)
+        else:
+            l2_term = 0.0
+            
+        return float(log_loss_term + l2_term)
+
+    def fit(self, X: Union[np.ndarray, Sequence], y: Union[np.ndarray, Sequence]) -> "LogisticRegression":
+        """
+        Trains the Logistic Regression model using Batch Gradient Descent.
+        """
+        X_arr = np.asarray(X, dtype=float)
+        y_arr = np.asarray(y, dtype=float).flatten()
+        
+        if X_arr.ndim != 2: raise ValueError("X must be a 2D array.")
+        if np.any((y_arr != 0) & (y_arr != 1)):
+             raise ValueError("Target y must be binary and encoded as {0, 1}.")
+            
+        self.classes_ = np.unique(y_arr)
+        n_samples, n_features = X_arr.shape
+            
         if self.random_state is not None:
             np.random.seed(self.random_state)
-            
-        n_samples, n_features = X.shape
-        
-        # 1. Initialize weights (w) and bias (b)
-        self.w_ = np.random.rand(n_features) * 0.01
-        self.b_ = np.random.rand(1)[0] * 0.01 # Initializing close to zero often helps
+
+        # 1. Initialization
+        self.w_ = np.random.randn(n_features) * 0.01
+        self.b_ = np.random.randn() * 0.01 if self.fit_intercept else 0.0
         
         self.cost_history_ = []
         
-        # 2. Start Gradient Descent Loop
-        for _ in range(self.epochs):
+        # 2. Gradient Descent Loop
+        for i in range(self.epochs):
+            self.n_iter_ = i + 1
             
-            # 2a. Calculate the Hypothesis (Predicted Probability)
-            # h(X) is P(y=1 | X)
-            z = self._net_input(X)
-            y_prob = self._sigmoid(z) # [Image of Sigmoid function]
+            # Forward Pass
+            z = self.decision_function(X_arr)
+            y_prob = self._sigmoid(z)
             
-            # 2b. Calculate the Error Vector
-            # Error = (y_prob - y)
-            # This calculation (h(X) - y) is the term needed for the cross-entropy gradient.
-            errors = y_prob - y
+            # Calculate Error Signal
+            errors = y_prob - y_arr 
             
-            # 2c. Calculate the Gradients
-            # Gradient w.r.t. Weights (w): (1/n) * sum((y_prob - y) * x)
-            dw = (1 / n_samples) * np.dot(X.T, errors)
-            
-            # Gradient w.r.t. Bias (b): (1/n) * sum(y_prob - y)
+            # Calculate Gradients
+            dw = (1 / n_samples) * (X_arr.T @ errors)
             db = (1 / n_samples) * np.sum(errors)
             
-            # 2d. Update Weights and Bias [Image of Gradient Descent for Logistic Regression Cost function]
-            self.w_ -= self.eta * dw
-            self.b_ -= self.eta * db
+            # Apply Regularization (penalty term on dw)
+            if self._lambda > 0:
+                dw += self._lambda * self.w_
             
-            # 2e. Calculate and Store Cost (Binary Cross-Entropy/Log Loss)
-            # J = - (1/n) * sum( y*log(y_prob) + (1-y)*log(1-y_prob) )
-            # Add a small value (1e-15) to log inputs to prevent log(0)
-            cost = (-1 / n_samples) * np.sum(y * np.log(y_prob + 1e-15) + (1 - y) * np.log(1 - y_prob + 1e-15))
-            self.cost_history_.append(cost)
+            # Update Weights and Bias
+            self.w_ -= self.eta * dw
+            if self.fit_intercept:
+                self.b_ -= self.eta * db
+            
+            # Calculate and Store Cost
+            current_cost = self._cost(y_prob, y_arr)
+            self.cost_history_.append(current_cost)
+            
+            # Check for Convergence (Early Stopping)
+            if i > 0 and self.tol is not None:
+                if abs(self.cost_history_[-2] - self.cost_history_[-1]) < self.tol:
+                    break
             
         return self
 
-    def predict_proba(self, X):
+    def predict_proba(self, X: Union[np.ndarray, Sequence]) -> np.ndarray:
         """
         Predicts the probability of belonging to class 1.
         """
-        return self._sigmoid(self._net_input(X))
+        z = self.decision_function(X)
+        y_prob = self._sigmoid(z)
+        return y_prob
 
-    def predict(self, X):
+    def predict(self, X: Union[np.ndarray, Sequence]) -> np.ndarray:
         """
-        Predicts the class label (0 or 1).
-        
-        Uses a threshold of 0.5 on the predicted probability.
+        Predicts the class label (0 or 1) using a threshold of 0.5.
         """
         probabilities = self.predict_proba(X)
-        # Class 1 if probability >= 0.5, else Class 0
         return np.where(probabilities >= 0.5, 1, 0)
+
+    def score(self, X: Union[np.ndarray, Sequence], y: Union[np.ndarray, Sequence], 
+              scoring: Literal['roc_auc', 'log_loss', 'accuracy'] = 'roc_auc') -> float:
+        """
+        Returns a selected evaluation score (default is ROC AUC).
+        
+        Parameters
+        ----------
+        scoring : {'roc_auc', 'log_loss', 'accuracy'}
+            The metric to compute.
+            
+        Returns
+        -------
+        float
+            The calculated score.
+        """
+        if self.w_ is None:
+            raise RuntimeError("Model is not fitted. Call fit(X, y) first.")
+            
+        y_true = np.asarray(y).flatten()
+        y_prob = self.predict_proba(X)
+        y_pred = self.predict(X)
+        
+        if scoring == 'roc_auc':
+            # ROC AUC requires probabilities
+            return float(roc_auc_score(y_true, y_prob))
+        elif scoring == 'log_loss':
+            # Log Loss requires probabilities
+            return float(log_loss(y_true, y_prob))
+        elif scoring == 'accuracy':
+            # Accuracy requires hard predictions
+            return float(np.mean(y_true == y_pred))
+        else:
+            raise ValueError(f"Unknown scoring method: {scoring}")

@@ -11,7 +11,8 @@ __all__ = [
 ArrayLike = Union[np.ndarray, Sequence[float], Sequence[Sequence[float]]]
 
 
-# ---- Helpers & Validation ----
+# ----------------------------- Helpers & Validation -----------------------------
+
 def _ensure_2d_float(X: ArrayLike, name: str = "X") -> np.ndarray:
     """Ensure X is a 2D numeric ndarray of dtype float."""
     arr = np.asarray(X)
@@ -57,9 +58,6 @@ def _validate_common_params(
 def _pairwise_distances(XA: np.ndarray, XB: np.ndarray, metric: str) -> np.ndarray:
     """
     Compute pairwise distances between rows of XA and XB.
-    Returns a distance matrix D of shape (n_a, n_b) where D[i, j] is the distance
-    between XA[i] and XB[j].
-    
     """
     if metric == "euclidean":
         # Vectorized Euclidean distance calculation: ||a-b||^2 = ||a||^2 + ||b||^2 - 2 a·b
@@ -69,12 +67,11 @@ def _pairwise_distances(XA: np.ndarray, XB: np.ndarray, metric: str) -> np.ndarr
         D2 = np.maximum(aa + bb - 2.0 * XA @ XB.T, 0.0)
         return np.sqrt(D2, dtype=float)
     elif metric == "manhattan":
-        # Vectorized Manhattan distance calculation: sum(|a_i - b_i|)
+        # Vectorized Manhattan distance calculation
         # Use broadcasting: (n_a, 1, d) - (1, n_b, d)
         diff = XA[:, None, :] - XB[None, :, :]
         return np.sum(np.abs(diff), axis=2, dtype=float)
     else:
-        # Checked in _validate_common_params, but here for completeness
         raise ValueError("Unsupported metric.")
 
 
@@ -89,15 +86,13 @@ def _neighbors(X_train: np.ndarray, X_query: np.ndarray, n_neighbors: int, metri
     if n_neighbors > X_train.shape[0]:
         raise ValueError(f"n_neighbors={n_neighbors} cannot exceed number of training samples={X_train.shape[0]}.")
         
-    # 1. Get the indices that would sort the distances matrix row-wise
-    # np.argsort is a clean way to get sorted indices
+    # Get the indices that would sort the distances matrix row-wise
     idx_all_sorted = np.argsort(D, axis=1) # (nq, n_train)
 
-    # 2. Slice to keep only the top k neighbors
+    # Slice to keep only the top k neighbors
     idx_sorted = idx_all_sorted[:, :n_neighbors] # (nq, k)
     
-    # 3. Use these indices to get the corresponding distances
-    # np.take_along_axis is a robust way to select elements using index arrays
+    # Use these indices to get the corresponding distances
     d_sorted = np.take_along_axis(D, idx_sorted, axis=1) # (nq, k)
     
     return d_sorted, idx_sorted
@@ -114,7 +109,6 @@ def _weights_from_distances(dist: np.ndarray, scheme: str, eps: float = 1e-12) -
     zero_mask = (dist <= eps)
     w = np.empty_like(dist, dtype=float)
     
-    # Identify queries where one or more neighbors are at distance 0
     any_zero_in_query = zero_mask.any(axis=1)
 
     # Case 1: Queries with distance 0 neighbor(s). Assign weight 1 only to those, 0 to others.
@@ -123,13 +117,12 @@ def _weights_from_distances(dist: np.ndarray, scheme: str, eps: float = 1e-12) -
         
     # Case 2: Queries where all distances are non-zero. Use inverse distance.
     if np.any(~any_zero_in_query):
-        # Calculate inverse distance: 1 / d
         w[~any_zero_in_query] = 1.0 / np.maximum(dist[~any_zero_in_query], eps)
         
     return w
 
 
-# ---- Base ----
+# ---------------------------------- Base ----------------------------------
 
 class _KNNBase:
     """Shared functionality for KNN models."""
@@ -148,7 +141,7 @@ class _KNNBase:
         self._X: Optional[np.ndarray] = None
         self._y: Optional[np.ndarray] = None
 
-    # ---- API ----
+    # ---------------- API ----------------
 
     def fit(self, X: ArrayLike, y: ArrayLike):
         """Fit the model."""
@@ -182,7 +175,6 @@ class _KNNBase:
 class KNNClassifier(_KNNBase):
     """
     k-Nearest Neighbors classifier.
-    
     """
 
     def __init__(
@@ -217,22 +209,15 @@ class KNNClassifier(_KNNBase):
         n_classes = len(self.classes_)
         proba = np.zeros((n_query, n_classes), dtype=float)
         
-        # Vectorized probability calculation (Optimization)
-        
-        # 1. Map neighbor labels (y_train[idx]) to their integer class index
-        # This converts a label array like ['A', 'B', 'A'] to class indices [0, 1, 0]
-        # classes_ must be sorted for this: it is due to np.unique
+        # 1. Map neighbor labels to their integer class index
         class_indices = np.searchsorted(self.classes_, y_train[idx]) # (n_query, k)
         
-        # 2. Iterate through queries to use np.bincount (which doesn't vectorize well across rows)
+        # 2. Sum weights (votes) for each class index using bincount per row
         for i in range(n_query):
-            # Sum weights (votes) for each class index
             counts = np.bincount(class_indices[i], weights=w[i], minlength=n_classes)
             total_weight = counts.sum()
             
             if total_weight == 0:
-                 # Fallback for when all weights are zero (should only happen if k=0 or if 
-                 # _weights_from_distances logic fails, which it shouldn't)
                 proba[i] = 1.0 / n_classes
             else:
                 proba[i] = counts / total_weight
@@ -243,7 +228,6 @@ class KNNClassifier(_KNNBase):
         """Predict the most probable class."""
         proba = self.predict_proba(X)
         best = np.argmax(proba, axis=1)
-        # Return the label (dtype preserved) corresponding to the highest probability index
         return self.classes_[best]
 
     def score(self, X: ArrayLike, y: ArrayLike) -> float:
@@ -255,7 +239,7 @@ class KNNClassifier(_KNNBase):
         return float(np.mean(y_true == y_pred))
 
 
-# ---- Regressor -----
+# -------------------------------- Regressor --------------------------------
 
 class KNNRegressor(_KNNBase):
     """
@@ -266,7 +250,6 @@ class KNNRegressor(_KNNBase):
         X_arr = _ensure_2d_float(X, "X")
         y_arr = _ensure_1d(y, "y")
         
-        # Ensure target values are float for regression
         if not np.issubdtype(y_arr.dtype, np.number):
             try:
                 y_arr = y_arr.astype(float, copy=False)
@@ -279,7 +262,7 @@ class KNNRegressor(_KNNBase):
             raise ValueError("n_neighbors cannot exceed the number of training samples.")
             
         self._X = X_arr
-        self._y = y_arr.astype(float, copy=False) # Ensure targets are stored as float
+        self._y = y_arr.astype(float, copy=False)
         return self
 
     def predict(self, X: ArrayLike) -> np.ndarray:
@@ -296,14 +279,14 @@ class KNNRegressor(_KNNBase):
         y_neighbors = y_train[idx]  # (nq, k)
         wsum = np.sum(w, axis=1)
         
-        # Calculate weighted average: (w * y_neighbors) / wsum
-        # Use np.errstate to temporarily ignore division by zero errors
+        # Calculate weighted average
         with np.errstate(divide="ignore", invalid="ignore"):
             y_pred = np.divide(np.sum(w * y_neighbors, axis=1), wsum, where=wsum != 0)
         
-        # Fallback: if total weight is 0, use simple uniform mean
+        # Fallback: if total weight is 0 (e.g., all distances were exactly 0 and weights were restricted)
         fallback = (wsum == 0)
         if np.any(fallback):
+            # Fallback to simple uniform mean of the neighbors
             y_pred[fallback] = np.mean(y_neighbors[fallback], axis=1)
             
         return y_pred.astype(float, copy=False)
@@ -324,13 +307,11 @@ class KNNRegressor(_KNNBase):
         ss_tot = np.sum((y_true - y_mean) ** 2)
 
         if ss_tot == 0:
-            # Handle constant target case gracefully (R^2 undefined)
-            if np.array_equal(Xq, X_train) and ss_res < 1e-12: # Check for near-zero residual for perfect fit
+            if np.array_equal(Xq, X_train) and ss_res < 1e-12:
                 return 1.0
             raise ValueError(
                 "R^2 is undefined when y_true is constant unless scoring on the "
                 "training inputs with a perfect fit."
             )
         
-        # R^2 = 1 - (SS_res / SS_tot)
         return float(1.0 - ss_res / ss_tot)

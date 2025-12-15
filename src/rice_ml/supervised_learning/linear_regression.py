@@ -1,126 +1,142 @@
 import numpy as np
+from typing import Optional, Union, Sequence, List, Literal, Callable
+from .post_processing import r2_score
+import warnings
+
 
 class LinearRegression:
     """
-    Linear Regression model implemented using Gradient Descent (GD) for optimization.
-
-    This model finds the best-fit line (or hyperplane) for a dataset by minimizing
-    the Mean Squared Error (MSE) cost function iteratively.
+    A comprehensive Linear Regression model supporting OLS, Ridge, and Gradient Descent.
 
     Parameters
     ----------
-    eta : float
-        The learning rate (step size) for gradient descent (between 0.0 and 1.0).
-        A small eta ensures stability, but a very small eta slows convergence.
-        Default is 0.01.
-    epochs : int
-        The number of training iterations (passes over the entire training set).
-        Default is 1000.
+    method : {'ols', 'ridge', 'gd'}, default='ols'
+        The optimization method to use.
+    alpha : float, default=0.0
+        Regularization strength (lambda) for Ridge regression. Ignored if method='ols' or 'gd'.
+    eta : float, default=0.01
+        Learning rate for Gradient Descent (if method='gd').
+    epochs : int, default=1000
+        Maximum iterations for Gradient Descent (if method='gd').
     random_state : int, optional
-        Seed for the random number generator used for initial weight initialization.
-        Default is None.
-
-    Attributes
-    ----------
-    w_ : 1d-array
-        Optimized weights (coefficients) after fitting, excluding the bias.
-    b_ : float
-        Optimized bias term (intercept) after fitting.
-    cost_history_ : list
-        The value of the Mean Squared Error cost function after each epoch.
+        Seed for reproducibility.
     """
-    def __init__(self, eta=0.01, epochs=1000, random_state=None):
+    def __init__(self, method: Literal['ols', 'ridge', 'gd'] = 'ols', 
+                 alpha: float = 0.0, eta: float = 0.01, epochs: int = 1000, 
+                 random_state: Optional[int] = None):
+        
+        self.method = method
+        self.alpha = alpha
         self.eta = eta
         self.epochs = epochs
         self.random_state = random_state
         
-        # Attributes initialized during fitting
-        self.w_ = None
-        self.b_ = None
-        self.cost_history_ = []
+        self.w_: Optional[np.ndarray] = None  # Weights (coefficients)
+        self.b_: Optional[float] = None       # Bias (intercept)
+        self.cost_history_: List[float] = []  # Cost history for GD
 
-    def fit(self, X, y):
-        """
-        Trains the Linear Regression model using Gradient Descent.
+    def _add_intercept_column(self, X: np.ndarray) -> np.ndarray:
+        """Adds a column of ones to X for intercept calculation."""
+        return np.hstack((X, np.ones((X.shape[0], 1))))
 
-        Parameters
-        ----------
-        X : {array-like}, shape = [n_samples, n_features]
-            Training vectors (features).
-        y : {array-like}, shape = [n_samples]
-            Target values (true outcomes).
+    def _fit_closed_form(self, X_biased: np.ndarray, y: np.ndarray):
+        """Fits using the analytical solution (OLS or Ridge)."""
+        n_features_biased = X_biased.shape[1]
+        
+        # 1. Calculate X_biased.T @ X_biased
+        XTX = X_biased.T @ X_biased
+        
+        # 2. Add regularization for Ridge
+        if self.method == 'ridge':
+            # Identity matrix (I) for Ridge: size is (n_features+1, n_features+1)
+            # We DON'T regularize the intercept term (the last column of W), 
+            # so the last element of the diagonal is 0.
+            I = np.eye(n_features_biased)
+            I[-1, -1] = 0.0 
+            XTX += self.alpha * I
 
-        Returns
-        -------
-        self : object
-        """
+        # 3. Calculate (XTX + alpha*I)^-1
+        try:
+            XTX_inv = np.linalg.inv(XTX)
+        except np.linalg.LinAlgError:
+            # Handle case where XTX is singular (e.g., collinearity, few samples)
+            warnings.warn("XTX matrix is singular. Using pseudo-inverse (least squares).", RuntimeWarning)
+            XTX_inv = np.linalg.pinv(XTX) 
+
+        # 4. Calculate final weights W = (XTX + alpha*I)^-1 @ X.T @ y
+        W_full = XTX_inv @ X_biased.T @ y
+        
+        # 5. Separate weights and bias
+        self.w_ = W_full[:-1]
+        self.b_ = W_full[-1]
+
+    def _fit_gradient_descent(self, X: np.ndarray, y: np.ndarray):
+        """Fits using Batch Gradient Descent (reusing prior GD logic)."""
         if self.random_state is not None:
             np.random.seed(self.random_state)
             
         n_samples, n_features = X.shape
         
-        # 1. Initialize weights (w) and bias (b)
-        # Initialize w_ with small random values
-        self.w_ = np.random.rand(n_features) 
-        # Initialize bias b_ to a small random value (or 0)
-        self.b_ = np.random.rand(1)[0]
-        
+        # Initialize weights (w) and bias (b) separately
+        self.w_ = np.random.randn(n_features) * 0.01
+        self.b_ = np.random.randn() * 0.01
         self.cost_history_ = []
-        
-        # 2. Start Gradient Descent Loop
+
         for _ in range(self.epochs):
-            
-            # 2a. Calculate the Hypothesis (Prediction)
-            # h(X) = X * w + b. This predicts y for ALL samples at once.
-            y_pred = self._net_input(X)
-            
-            # 2b. Calculate the Error Vector
-            # Error = (h(X) - y)
+            # Calculate hypothesis
+            y_pred = X @ self.w_ + self.b_
             errors = y_pred - y
             
-            # 2c. Calculate the Gradients
-            # Gradient of Cost w.r.t. Weights (w_j): 
-            # (1/n) * sum((h(xi) - yi) * xij)
-            # np.dot(X.T, errors) efficiently computes the sum across all samples
-            # for all features, matching the derivative formula.
-            dw = (1 / n_samples) * np.dot(X.T, errors)
-            
-            # Gradient of Cost w.r.t. Bias (b): 
-            # (1/n) * sum(h(xi) - yi)
+            # Calculate Gradients
+            dw = (1 / n_samples) * X.T @ errors
             db = (1 / n_samples) * np.sum(errors)
             
-            # 2d. Update Weights and Bias 
-            # w = w - eta * dw
-            # b = b - eta * db
+            # Update Weights and Bias
             self.w_ -= self.eta * dw
             self.b_ -= self.eta * db
             
-            # 2e. Calculate and Store Cost (MSE)
-            # Cost = (1/2n) * sum((h(xi) - yi)^2)
+            # Calculate and Store Cost (MSE scaled by 1/2)
             cost = (1 / (2 * n_samples)) * np.sum(errors**2)
             self.cost_history_.append(cost)
+
+    def fit(self, X: Union[np.ndarray, Sequence], y: Union[np.ndarray, Sequence]) -> "LinearRegression":
+        """
+        Trains the Linear Regression model using the specified method.
+        """
+        X_arr = np.asarray(X, dtype=float)
+        y_arr = np.asarray(y, dtype=float).flatten()
+        
+        if X_arr.ndim != 2: raise ValueError("X must be a 2D array.")
+        if y_arr.ndim != 1 or X_arr.shape[0] != y_arr.shape[0]:
+            raise ValueError("y must be a 1D array matching the number of rows in X.")
+
+        if self.method in ['ols', 'ridge']:
+            X_biased = self._add_intercept_column(X_arr)
+            self._fit_closed_form(X_biased, y_arr)
+        elif self.method == 'gd':
+            self._fit_gradient_descent(X_arr, y_arr)
+        else:
+            raise ValueError(f"Unknown method '{self.method}'. Must be 'ols', 'ridge', or 'gd'.")
             
         return self
 
-    def _net_input(self, X):
-        """
-        Calculates the linear hypothesis, h(X) = X * w + b.
-        """
-        # Linear equation: weighted sum of features plus the bias
-        return np.dot(X, self.w_) + self.b_
+    def predict(self, X: Union[np.ndarray, Sequence]) -> np.ndarray:
+        """Predicts continuous target values."""
+        if self.w_ is None or self.b_ is None:
+            raise RuntimeError("Model is not fitted. Call fit(X, y) first.")
+            
+        X_arr = np.asarray(X, dtype=float)
+        if X_arr.ndim == 1: X_arr = X_arr.reshape(1, -1)
+            
+        # Prediction: X @ w + b
+        return X_arr @ self.w_ + self.b_
 
-    def predict(self, X):
-        """
-        Predicts the continuous target value for the input data.
-
-        Parameters
-        ----------
-        X : {array-like}, shape = [n_samples, n_features]
-            Input vectors.
-
-        Returns
-        -------
-        1d-array
-            Predicted target values.
-        """
-        return self._net_input(X)
+    def score(self, X: Union[np.ndarray, Sequence], y: Union[np.ndarray, Sequence]) -> float:
+        """Returns the coefficient of determination (R^2) of the prediction."""
+        if self.w_ is None:
+            raise RuntimeError("Model is not fitted. Call fit(X, y) first.")
+            
+        y_pred = self.predict(X)
+        y_true = np.asarray(y, dtype=float).flatten()
+        
+        return float(r2_score(y_true, y_pred))
