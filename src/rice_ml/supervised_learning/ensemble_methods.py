@@ -1,39 +1,51 @@
 import numpy as np
-from typing import List, Any, Optional, Union, Sequence
+from typing import List, Any, Optional, Union, Sequence, Callable, Dict, Tuple, Literal
 from collections import Counter
-from .decision_tree import DecisionTree
+import warnings
 import copy
+from rice_ml.utils import ArrayLike, ensure_2d_numeric, ensure_1d_vector, check_Xy_shapes
+from .decision_trees import DecisionTreeClassifier 
+from .regression_trees import DecisionTreeRegressor 
+
+# --- Internal Helper for Aggregation  ---
 
 
+def _aggregate_predictions(y_preds: np.ndarray, mode: str) -> np.ndarray:
+    """Aggregates predictions (rows) from multiple models (columns)."""
+    
+    if mode == 'hard_vote':
+        # Used by Classifier: find the mode (most frequent) label for each sample
+        
+        # Use Counter to find the mode and handle ties by choosing the smallest label
+        def get_mode(row):
+            counts = Counter(row)
+            return min([key for key, value in counts.items() if value == max(counts.values())])
+        
+        return np.array([get_mode(y_preds[i, :]) for i in range(y_preds.shape[0])])
+    
+    elif mode == 'average':
+        # Used by Regressor: calculate the mean prediction for each sample
+        return np.mean(y_preds, axis=1)
+    
+    else:
+        raise ValueError(f"Unknown aggregation mode: {mode}")
 
-ArrayLike = Union[np.ndarray, Sequence[Any]]
-
-# --- Internal Helper for Validation and Bootstrap ---
-
-def _ensure_2d_numeric(X: ArrayLike) -> np.ndarray:
-    """Ensures X is a 2D numeric NumPy array (simplified)."""
-    X_arr = np.asarray(X, dtype=float)
-    if X_arr.ndim == 1:
-        X_arr = X_arr.reshape(-1, 1)
-    if X_arr.ndim != 2:
-        raise ValueError("Input must be a 1D or 2D array.")
-    return X_arr
-
-def _get_bootstrap_indices(n_samples: int, random_state: Optional[int]) -> np.ndarray:
+# --- Internal Helper for Bootstrap Indices ---
+def _get_bootstrap_indices(n_samples: int, rng: np.random.Generator) -> np.ndarray:
     """Generates indices for a bootstrap sample (sampling with replacement)."""
-    rng = np.random.default_rng(random_state)
     return rng.choice(n_samples, size=n_samples, replace=True)
 
-# ----- 1. Hard Voting Classifier --------
+
+# ----- 1. Hard Voting Classifier -----
 
 class HardVotingClassifier:
     """
-    Implements a Hard Voting classifier (majority vote).
+    Implements a Hard Voting classifier (majority vote). 
 
     Parameters
     ----------
     estimators : List[Any]
-        A list of fitted or unfitted estimator objects. They must support the `predict` method.
+        A list of fitted or unfitted estimator objects.
     """
     def __init__(self, estimators: List[Any]):
         self.estimators = estimators
@@ -43,8 +55,9 @@ class HardVotingClassifier:
         """
         Fits all base estimators on the provided data.
         """
-        X_arr = _ensure_2d_numeric(X)
-        y_arr = np.asarray(y)
+        X_arr = ensure_2d_numeric(X)
+        y_arr = ensure_1d_vector(y)
+        check_Xy_shapes(X_arr, y_arr)
         
         self.classes_ = np.unique(y_arr)
 
@@ -57,47 +70,34 @@ class HardVotingClassifier:
         """
         Predicts the class label based on the majority vote from all estimators.
         """
-        X_arr = _ensure_2d_numeric(X)
+        X_arr = ensure_2d_numeric(X)
         
         if not self.estimators:
             raise RuntimeError("Estimators list is empty.")
             
-        # Collect predictions from all estimators
-        all_preds = []
-        for estimator in self.estimators:
-            all_preds.append(estimator.predict(X_arr))
-            
-        # Stack predictions: shape (n_estimators, n_samples)
-        pred_matrix = np.array(all_preds).T 
-
-        # Perform majority vote (mode) for each sample
-        final_predictions = np.apply_along_axis(
-            lambda x: Counter(x).most_common(1)[0][0], 
-            axis=1, 
-            arr=pred_matrix
-        )
-        return final_predictions
+        # Collect predictions and stack: shape (n_samples, n_estimators)
+        all_preds = np.array([est.predict(X_arr) for est in self.estimators]).T
+        
+        # Use the centralized aggregation function
+        return _aggregate_predictions(all_preds, mode='hard_vote')
 
 
-# ----------------------------- 2. Bagging Classifier -----------------------------
+# ----- 2. Bagging Classifier ------
 
 class BaggingClassifier:
     """
-    Implements a Bagging (Bootstrap Aggregating) classifier.
-
-    Trains multiple base estimators on random subsets of the training data
-    (sampled with replacement) and aggregates their predictions via majority vote.
-
+    Implements a Bagging (Bootstrap Aggregating) classifier. 
+    
     Parameters
     ----------
     base_estimator : Any
-        The estimator object to be cloned and trained (e.g., DecisionTree).
-    n_estimators : int
-        The number of base estimators (trees) in the ensemble. Default is 10.
-    random_state : Optional[int]
+        The base model to be cloned (default: DecisionTreeClassifier).
+    n_estimators : int, default=10
+        The number of base estimators.
+    random_state : Optional[int], default=None
         Controls the randomness of the bootstrapping.
     """
-    def __init__(self, base_estimator: Any = DecisionTree(max_depth=None), 
+    def __init__(self, base_estimator: Any = DecisionTreeClassifier(), 
                  n_estimators: int = 10, random_state: Optional[int] = None):
         self.base_estimator = base_estimator
         self.n_estimators = n_estimators
@@ -109,23 +109,21 @@ class BaggingClassifier:
         """
         Fits the ensemble by training each estimator on a bootstrap sample.
         """
-        X_arr = _ensure_2d_numeric(X)
-        y_arr = np.asarray(y)
+        X_arr = ensure_2d_numeric(X)
+        y_arr = ensure_1d_vector(y)
+        check_Xy_shapes(X_arr, y_arr)
         n_samples = X_arr.shape[0]
         self.classes_ = np.unique(y_arr)
         
         self.estimators_ = []
-        
         rng = np.random.default_rng(self.random_state)
-        seeds = rng.integers(0, 10000, size=self.n_estimators)
         
         for i in range(self.n_estimators):
             # Create a deep copy of the base estimator
             estimator = copy.deepcopy(self.base_estimator)
             
             # 1. Generate bootstrap indices
-            # Use a unique seed for each estimator based on the master random_state
-            bootstrap_indices = _get_bootstrap_indices(n_samples, int(seeds[i]))
+            bootstrap_indices = _get_bootstrap_indices(n_samples, rng)
             
             # 2. Sample data
             X_sample, y_sample = X_arr[bootstrap_indices], y_arr[bootstrap_indices]
@@ -140,63 +138,53 @@ class BaggingClassifier:
         """
         Predicts the class label using the majority vote from all estimators.
         """
-        X_arr = _ensure_2d_numeric(X)
+        X_arr = ensure_2d_numeric(X)
         
-        # Collect predictions from all estimators
+        # Collect predictions from all estimators and stack: shape (n_samples, n_estimators)
         all_preds = np.array([est.predict(X_arr) for est in self.estimators_]).T
         
-        # Perform majority vote (mode) for each sample
-        final_predictions = np.apply_along_axis(
-            lambda x: Counter(x).most_common(1)[0][0], 
-            axis=1, 
-            arr=all_preds
-        )
-        return final_predictions
+        # Use the centralized aggregation function
+        return _aggregate_predictions(all_preds, mode='hard_vote')
 
 
-# ----------------------------- 3. Random Forest Classifier -----------------------------
+# ----- 3. Random Forest Classifier -----
 
 class RandomForestClassifier(BaggingClassifier):
     """
-    Implements a Random Forest classifier (specialized Bagging).
+    Implements a Random Forest classifier (specialized Bagging). 
 
-    Random Forests introduce randomness at the feature level: each tree is 
-    trained on a bootstrap sample, and at each split, it only considers a 
-    random subset of features (max_features) for finding the best split.
-
+    Random Forests combine bootstrapping (from Bagging) with random feature selection
+    at each tree split (handled by the base estimator).
+    
     Parameters
     ----------
-    n_estimators : int
-        The number of trees in the forest. Default is 100.
-    max_depth : Optional[int]
+    n_estimators : int, default=100
+        The number of trees in the forest.
+    max_depth : Optional[int], default=None
         The maximum depth of each tree.
-    max_features : Union[str, float, int]
+    max_features : Union[str, float, int], default='sqrt'
         The number of features to consider when looking for the best split. 
-        - If 'sqrt' (default): max_features = sqrt(n_features)
-        - If 'log2': max_features = log2(n_features)
-        - If int: max_features is the absolute number.
-        - If float (0.0 to 1.0): max_features is the fraction.
-    random_state : Optional[int]
-        Controls the randomness of the bootstrapping and feature selection.
+    random_state : Optional[int], default=None
+        Controls the randomness.
     """
     def __init__(self, n_estimators: int = 100, max_depth: Optional[int] = None, 
                  max_features: Union[str, float, int] = 'sqrt', random_state: Optional[int] = None):
         
-        # Random Forests use the DecisionTree as the base estimator.
-        # We assume DecisionTree supports the 'max_features' parameter from our earlier implementation
-        # (even if the internal tree logic isn't fully implemented in the placeholder).
-        base_estimator = DecisionTree(max_depth=max_depth, random_state=random_state, max_features=max_features)
+        # 1. Initialize the base estimator (Decision Tree Classifier)
+        base_estimator = DecisionTreeClassifier(
+            max_depth=max_depth, 
+            random_state=random_state, 
+            max_features=max_features # Assumes DecisionTreeClassifier supports this
+        )
         
-        # BaggingClassifier is the superclass, handling the bootstrapping and aggregation.
+        # 2. Call the BaggingClassifier constructor to handle the ensemble logic
         super().__init__(
             base_estimator=base_estimator,
             n_estimators=n_estimators,
             random_state=random_state
         )
-        # Store attributes for transparency
         self.max_features = max_features
         self.max_depth = max_depth
 
-    # The fit and predict methods are inherited directly from BaggingClassifier.
-    # The feature randomness is handled internally by the DecisionTree object 
-    # during its own fit process (as defined by max_features). 
+    # fit and predict methods are inherited from BaggingClassifier.
+    # The feature randomness is applied internally by DecisionTreeClassifier during fit.

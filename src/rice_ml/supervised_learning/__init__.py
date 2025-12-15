@@ -10,10 +10,13 @@ from .k_nearest_neighbors import KNNClassifier, KNNRegressor
 # --- Tree-Based Models ---
 from .decision_trees import DecisionTreeClassifier
 from .regression_trees import DecisionTreeRegressor
-from .ensemble_methods import HardVotingClassifier, BaggingClassifier, RandomForestClassifier
+from .ensemble_methods import RandomForestClassifier, RandomForestRegressor 
 
 # --- Neural Networks ---
 from .multilayer_perceptron import MLPBinaryClassifier
+
+from ._tree_helpers import gini_impurity, entropy, variance, information_gain
+from ._linear_helpers import sigmoid, relu, relu_derivative, add_bias_unit
 
 __all__ = [
     'LinearRegression',
@@ -26,9 +29,18 @@ __all__ = [
     
     'DecisionTreeClassifier',
     'DecisionTreeRegressor',
-    'HardVotingClassifier',
-    'BaggingClassifier'
     'RandomForestClassifier',
+    'RandomForestRegressor',
 
     'MLPBinaryClassifier',
+    
+    # Helpers:
+    'gini_impurity', 
+    'entropy', 
+    'variance', 
+    'information_gain',
+    'sigmoid', 
+    'relu', 
+    'relu_derivative', 
+    'add_bias_unit'
 ]

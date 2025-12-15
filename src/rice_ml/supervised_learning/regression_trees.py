@@ -1,218 +1,165 @@
 import numpy as np
-from typing import Optional, Union, Sequence
+from typing import Optional, Union, Sequence, Any, Tuple, Literal
 
-# --- 1. Node Class for the Tree Structure ---
+from rice_ml.utils import ArrayLike, ensure_2d_numeric, ensure_1d_vector, check_Xy_shapes
+from rice_ml.supervised_learning._tree_helpers import variance, information_gain 
 
+# --- Internal Node Class ---
 class Node:
     """A node in the regression tree."""
     def __init__(self, feature_idx=None, threshold=None, left=None, right=None, *, value=None):
-        # Parameters for an internal (split) node
-        self.feature_idx = feature_idx  # Index of the feature to split on
-        self.threshold = threshold      # Threshold value for the split
-        self.left = left                # Left child node (True side of the split)
-        self.right = right              # Right child node (False side of the split)
-
-        # Parameter for a leaf node
-        self.value = value              # The predicted mean value if it's a leaf
-
+        self.feature_idx = feature_idx
+        self.threshold = threshold
+        self.left = left
+        self.right = right
+        self.value = value # Mean target value for leaf nodes
+        
     def is_leaf_node(self):
-        """Checks if the node is a terminal (leaf) node."""
         return self.value is not None
 
-# --- 2. Mean Squared Error (MSE) Function ---
+# --- Decision Tree Regressor ---
 
-def _mean_squared_error(y: np.ndarray) -> float:
+class DecisionTreeRegressor:
     """
-    Calculate the Mean Squared Error (Variance) around the mean for a set of target values y.
-    This serves as the impurity measure for regression trees.
-    """
-    if len(y) == 0:
-        return 0.0
+    A Decision Tree Regressor using the CART algorithm with Variance Reduction 
+    (based on Mean Squared Error) as the splitting criterion. 
     
-    # Cost = mean of (y - y_mean)^2
-    return np.mean((y - np.mean(y))**2)
-
-# --- 3. Regression Tree Regressor ---
-
-class RegressionTree:
-    """
-    A simple CART-style Regression Tree implemented from scratch.
-    Uses Mean Squared Error (MSE) / Variance Reduction for splitting.
-
     Parameters
     ----------
-    max_depth : int, optional
-        The maximum depth of the tree. If None, the tree is grown until 
-        all leaves are pure or until min_samples_split is met.
-    min_samples_split : int, optional
-        The minimum number of samples required to split an internal node.
-        Default is 2.
-    random_state : int, optional
-        A seed for reproducibility.
+    max_depth : Optional[int], default=None
+        Maximum depth of the tree.
+    min_samples_split : int, default=2
+        Minimum number of samples required to split an internal node.
     """
-    def __init__(self, max_depth=None, min_samples_split=2, random_state=None):
+
+    def __init__(self, max_depth: Optional[int] = None, min_samples_split: int = 2, 
+                 random_state: Optional[int] = None):
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.random_state = random_state
-        self.root: Optional[Node] = None
-        self.n_features: Optional[int] = None
+        self.tree_: Optional[Node] = None
+        self.n_features_: Optional[int] = None
+        
+    def _get_leaf_value(self, y: np.ndarray) -> float:
+        """Determines the prediction value for a leaf node (the mean of the target values)."""
+        return float(np.mean(y))
 
-    # --- Core Splitting Logic ---
+    # --- Core Tree Building Logic ---
 
-    def _best_split(self, X: np.ndarray, y: np.ndarray) -> tuple[Optional[int], Optional[float]]:
+    def _find_best_split(self, X: np.ndarray, y: np.ndarray) -> Tuple[Optional[int], Optional[float], float]:
         """
-        Find the best split based on the maximum Reduction in Variance (Information Gain).
+        Finds the split that maximizes variance reduction.
         """
-        best_variance_reduction = -1.0
+        n_samples, n_features = X.shape
+        if n_samples < self.min_samples_split:
+            return None, None, 0.0
+
+        best_gain = -1.0
         best_feature_idx = None
         best_threshold = None
-        n_samples, _ = X.shape
+        y_parent = y
 
-        # Initial impurity (parent node cost)
-        parent_mse = _mean_squared_error(y)
-
-        for feature_idx in range(X.shape[1]):
-            X_column = X[:, feature_idx]
-            # Consider unique values as potential thresholds
-            thresholds = np.unique(X_column)
+        for feature_idx in range(n_features):
+            unique_values = np.unique(X[:, feature_idx])
             
-            for threshold in thresholds:
-                # 1. Split the data
-                left_indices = X_column <= threshold
-                right_indices = X_column > threshold
+            for threshold in unique_values:
+                left_mask = X[:, feature_idx] <= threshold
+                y_left = y[left_mask]
+                y_right = y[~left_mask]
 
-                # Skip splits that result in empty children
-                n_left, n_right = np.sum(left_indices), np.sum(right_indices)
-                if n_left < 1 or n_right < 1:
+                if len(y_left) == 0 or len(y_right) == 0:
                     continue
 
-                # Get targets for the children
-                y_left = y[left_indices]
-                y_right = y[right_indices]
-
-                # 2. Calculate Weighted Child Cost (MSE)
-                mse_left = _mean_squared_error(y_left)
-                mse_right = _mean_squared_error(y_right)
-
-                # Weighted MSE of the split
-                weighted_child_mse = (n_left / n_samples) * mse_left + \
-                                     (n_right / n_samples) * mse_right
-
-                # 3. Calculate Variance Reduction (Information Gain)
-                variance_reduction = parent_mse - weighted_child_mse
-
-                # 4. Update the best split
-                if variance_reduction > best_variance_reduction:
-                    best_variance_reduction = variance_reduction
+                # Use the centralized information_gain helper with the 'variance' metric
+                gain = information_gain(y_parent, y_left, y_right, metric='variance')
+                
+                if gain > best_gain:
+                    best_gain = gain
                     best_feature_idx = feature_idx
                     best_threshold = threshold
 
-        return best_feature_idx, best_threshold
-
-    # --- Recursive Tree Building ---
-
-    def _build_tree(self, X: np.ndarray, y: np.ndarray, depth: int = 0) -> Node:
+        return best_feature_idx, best_threshold, best_gain
+    
+    def _build_tree(self, X: np.ndarray, y: np.ndarray, depth: int) -> Node:
         """
         Recursively builds the regression tree.
         """
         n_samples, _ = X.shape
+        mean_y = np.mean(y)
 
-        # --- Check Stopping Criteria (Base Cases) ---
-        
-        # 1. Max depth reached
-        if self.max_depth is not None and depth >= self.max_depth:
-            return Node(value=np.mean(y))
-        
-        # 2. All target values are identical (pure node)
-        # Note: Variance will be 0 if all y values are the same.
-        if np.allclose(y, y[0]):
-             return Node(value=np.mean(y))
+        # Base Cases
+        # Use variance helper for purity check (variance < 1e-6)
+        if (variance(y) < 1e-6 or 
+            (self.max_depth is not None and depth >= self.max_depth) or
+            n_samples < self.min_samples_split):
             
-        # 3. Minimum samples for a split not met
-        if n_samples < self.min_samples_split:
-            return Node(value=np.mean(y))
+            return Node(value=mean_y)
 
-        # --- Find and Apply Best Split ---
+        feature_idx, threshold, gain = self._find_best_split(X, y)
+
+        if gain <= 0:
+            return Node(value=mean_y)
+
+        left_mask = X[:, feature_idx] <= threshold
         
-        feature_idx, threshold = self._best_split(X, y)
+        X_left, y_left = X[left_mask], y[left_mask]
+        X_right, y_right = X[~left_mask], y[~left_mask]
 
-        # If no split improves the variance reduction significantly
-        if feature_idx is None or feature_idx < 0:
-            return Node(value=np.mean(y))
+        left_child = self._build_tree(X_left, y_left, depth + 1)
+        right_child = self._build_tree(X_right, y_right, depth + 1)
 
-        # Get indices for the split
-        X_column = X[:, feature_idx]
-        left_indices = X_column <= threshold
-        right_indices = X_column > threshold
-        
-        # Handle case where the best split still yields an empty subset (should be caught by _best_split, but as safety)
-        if np.sum(left_indices) == 0 or np.sum(right_indices) == 0:
-            return Node(value=np.mean(y))
-
-        # Recursive calls for children
-        left_child = self._build_tree(X[left_indices], y[left_indices], depth + 1)
-        right_child = self._build_tree(X[right_indices], y[right_indices], depth + 1)
-
-        # Return the internal node
         return Node(feature_idx, threshold, left_child, right_child)
 
-    # --- Public API Methods ---
+    # --- Public API ---
 
-    def fit(self, X: Union[np.ndarray, Sequence], y: Union[np.ndarray, Sequence]):
+    def fit(self, X: ArrayLike, y: ArrayLike):
         """
-        Builds the regression tree from the training data (X, y).
+        Builds the Regression Tree from the training data.
         """
-        X_arr = np.asarray(X, dtype=float)
-        y_arr = np.asarray(y, dtype=float)
+        X_arr = ensure_2d_numeric(X, name="X")
+        y_arr = ensure_1d_vector(y, name="y")
+        check_Xy_shapes(X_arr, y_arr)
         
-        if X_arr.ndim != 2:
-            raise ValueError("X must be a 2D array.")
-        if y_arr.ndim != 1 or X_arr.shape[0] != y_arr.shape[0]:
-            raise ValueError("y must be a 1D array matching the number of rows in X.")
-            
-        self.n_features = X_arr.shape[1]
-        self.root = self._build_tree(X_arr, y_arr)
+        if not np.issubdtype(y_arr.dtype, np.number):
+             y_arr = y_arr.astype(float, copy=False)
+
+        self.n_features_ = X_arr.shape[1]
+        self.tree_ = self._build_tree(X_arr, y_arr, depth=0)
+        
         return self
 
-    def _traverse_tree(self, x: np.ndarray, node: Node) -> float:
+    def _traverse_tree(self, x: np.ndarray, node: Optional[Node]) -> float:
         """
-        Recursively traverse the tree for a single data point x.
+        Traverses the fitted tree to find the prediction for a single data point x.
         """
-        # If it's a leaf, return the predicted mean value
+        if node is None:
+            raise RuntimeError("Traversal attempted on empty tree node.")
+            
         if node.is_leaf_node():
             return node.value
-
-        # Get the feature value for the split
-        feature_value = x[node.feature_idx]
         
-        # Decide whether to go left or right
-        if feature_value <= node.threshold:
+        if x[node.feature_idx] <= node.threshold:
             return self._traverse_tree(x, node.left)
         else:
             return self._traverse_tree(x, node.right)
 
-    def predict(self, X: Union[np.ndarray, Sequence]) -> np.ndarray:
+    def predict(self, X: ArrayLike) -> np.ndarray:
         """
-        Predicts continuous target values for the input data X.
-
-        Parameters
-        ----------
-        X : np.ndarray
-            The input data to predict on.
-
-        Returns
-        -------
-        np.ndarray
-            The predicted continuous values.
+        Predicts continuous target values for the input data.
         """
-        if self.root is None:
+        if self.tree_ is None:
             raise RuntimeError("Model is not fitted. Call fit(X, y) first.")
             
-        X_arr = np.asarray(X, dtype=float)
-        if X_arr.ndim == 1:
-            # Ensure input is 2D for consistent indexing
-            X_arr = X_arr.reshape(1, -1)
+        X_arr = ensure_2d_numeric(X, name="X")
             
-        # Apply the traversal function to every row in X
-        predictions = np.array([self._traverse_tree(x, self.root) for x in X_arr])
+        predictions = np.array([self._traverse_tree(x, self.tree_) for x in X_arr])
         return predictions
+    
+    def score(self, X: ArrayLike, y: ArrayLike) -> float:
+        """
+        Returns the R^2 score of the prediction.
+        """
+        from rice_ml.post_processing import r2_score
+        y_pred = self.predict(X)
+        y_true = ensure_1d_vector(y)
+        return float(r2_score(y_true, y_pred))

@@ -1,205 +1,141 @@
 import numpy as np
-class Node:
-    """A node in a decision tree."""
-    def __init__(self, feature=None, threshold=None, left=None, right=None, value=None):
-        self.feature = feature          # Index of the feature to split on
-        self.threshold = threshold      # Threshold value for the split
-        self.left = left                # Left child node (true side of the split)
-        self.right = right              # Right child node (false side of the split)
-        # parameter for leaf node
-        self.value = value              # Class label for leaf nodes
-    def is_leaf(self):
-        return self.value is not None
-def __gini_impurity(y):
-    """Calculate the Gini impurity for a list of class labels.
-    Gini impurity: G = 1 - sum(p_i^2) for each class i
-     """   
-     # if no samples, impurity is 0
-    if len(y) == 0:
-        return 0
-    # get unique class counts
-    __, counts = np.unique(y, return_counts=True)
-    
-    # calculate probabilities
-    probabilities = counts / len(y)
-    
-    # calculate gini impurity
-    gini = 1 - np.sum(probabilities ** 2)
-    return gini
+from typing import Optional, Union, Sequence, Any, Tuple, Literal, List
+import warnings
 
-class DecisionTree:
+from rice_ml.utils import ArrayLike, ensure_2d_numeric, ensure_1d_vector, check_Xy_shapes
+from rice_ml.supervised_learning._tree_helpers import gini_impurity, entropy, information_gain 
+
+# --- Internal Node Class ---
+
+class Node:
     """
-    A simple CART-style decision tree  classifier implemented from scratch.
-    Uses Gini impurity as the splitting criterion.
+    A node in a decision tree, representing either a split or a leaf.
     """
-    def __init__ (self, max_depth=None, min_samples_split=2):
-        """
-        Initializes the Decision Tree classifier.
-        Parameters:
-        -----------
-        max_depth: int, option
-            The maximum depth of the tree. If None, the tree is grown until all leaves are pure or until min_samples_split is reached.
-        min_samples_split: int, optional
-            The minimum number of samples required to split an internal node.
-            Must be greater than or equal to 2. Default is 2.
-        random_state: int, optional
-            Seed for the random number generator for reproducibility.
-        """
+    def __init__(self, feature=None, threshold=None, left=None, right=None, value=None):
+        self.feature = feature       # Index of the feature to split on (for split nodes)
+        self.threshold = threshold   # Threshold value for the split (for split nodes)
+        self.left = left             # Left child node
+        self.right = right           # Right child node
+        self.value = value           # Class label or prediction (for leaf nodes)
+        
+    def is_leaf(self):
+        """Checks if the node is a terminal leaf node."""
+        return self.value is not None
+
+# --- Decision Tree Classifier ---
+
+class DecisionTreeClassifier:
+    """
+    A simple Decision Tree Classifier using the CART (Classification and Regression Tree) 
+    algorithm with Gini Impurity or Entropy as the splitting criterion. 
+    
+    Parameters
+    ----------
+    criterion : {'gini', 'entropy'}, default='gini'
+        The function to measure the quality of a split.
+    max_depth : Optional[int], default=None
+        The maximum depth of the tree.
+    min_samples_split : int, default=2
+        The minimum number of samples required to split an internal node.
+    random_state : Optional[int], default=None
+        Seed for reproducibility.
+    """
+    
+    def __init__(self, criterion: Literal['gini', 'entropy'] = 'gini', max_depth: Optional[int] = None, 
+                 min_samples_split: int = 2, random_state: Optional[int] = None):
+        self.criterion = criterion
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
-        self.root = None
-        self.n_features = None
+        self.random_state = random_state
+        self.tree_: Optional[Node] = None 
+        self.classes_: Optional[np.ndarray] = None
+        self.n_features_: Optional[int] = None
         
-     # Core Splitting Logic   
-    def _best_split(self, X, y):
+        # Determine impurity function based on criterion
+        if self.criterion == 'gini':
+            self._impurity_func = gini_impurity
+        elif self.criterion == 'entropy':
+            self._impurity_func = entropy
+        else:
+            raise ValueError(f"Unknown criterion: {criterion}")
+
+    # --- Core Tree Building Logic ---
+
+    def _get_leaf_value(self, y: np.ndarray) -> Any:
+        """Determines the prediction value for a leaf node (the mode of the labels)."""
+        counts = np.unique(y, return_counts=True)
+        return counts[0][np.argmax(counts[1])]
+
+    def _find_best_split(self, X: np.ndarray, y: np.ndarray) -> Tuple[Optional[int], Optional[float], float]:
         """
-        Find the best feature and threshold to split the dataset (X, y)
-        based on the lowest weighted Gini impurity (highest Information Gain).
+        Finds the split that maximizes information gain using the criterion.
         """
-        best_gain = -1
+        n_samples, n_features = X.shape
+        if n_samples < self.min_samples_split:
+            return None, None, 0.0
+
+        best_gain = -1.0
         best_feature_idx = None
         best_threshold = None
-        n_samples, n_features = X.shape
+        
+        y_parent = y
 
-        # Initial impurity (parent node)
-        parent_gini = __gini_impurity(y)
-
-        # Iterate over all features
-        for feature_idx in range(n_features):
-            X_column = X[:, feature_idx]
-            # Potential thresholds are the unique values of the feature
-            # A common simplification is to use the midpoint between sorted unique values
-            thresholds = np.unique(X_column)
+        for feat_idx in range(n_features):
+            unique_values = np.unique(X[:, feat_idx])
             
-            # Iterate over all possible thresholds for the current feature
-            for threshold in thresholds:
-                # 1. Split the data
-                left_indices = X_column <= threshold
-                right_indices = X_column > threshold
+            for threshold in unique_values:
+                left_mask = X[:, feat_idx] <= threshold
+                y_left = y[left_mask]
+                y_right = y[~left_mask]
 
-                # Skip splits that result in empty children
-                if np.sum(left_indices) < 1 or np.sum(right_indices) < 1:
+                if len(y_left) == 0 or len(y_right) == 0:
                     continue
 
-                # Get labels for the children
-                y_left = y[left_indices]
-                y_right = y[right_indices]
-
-                # 2. Calculate Weighted Gini Impurity (Child Impurity)
-                n_left, n_right = len(y_left), len(y_right)
-                n_total = n_samples
-
-                gini_left = __gini_impurity(y_left)
-                gini_right = __gini_impurity(y_right)
-
-                # Weighted Gini of the split
-                gini_child = (n_left / n_total) * gini_left + \
-                             (n_right / n_total) * gini_right
-
-                # 3. Calculate Information Gain
-                information_gain = parent_gini - gini_child
-
-                # 4. Update the best split
-                if information_gain > best_gain:
-                    best_gain = information_gain
-                    best_feature_idx = feature_idx
+                # Use the centralized information_gain helper
+                gain = information_gain(y_parent, y_left, y_right, metric=self.criterion)
+                
+                if gain > best_gain:
+                    best_gain = gain
+                    best_feature_idx = feat_idx
                     best_threshold = threshold
 
-        return best_feature_idx, best_threshold
+        return best_feature_idx, best_threshold, best_gain
     
-    # ---- Recurvsive Tree Building ----
-    def __build_tree(self, X, y, depth=0):
+    def _build_tree(self, X: np.ndarray, y: np.ndarray, depth: int) -> Node:
         """
-        Recursively build the decision tree.
+        Recursively builds the decision tree (CART algorithm).
         """
-        n_samples, n_features = X.shape
-        n_labels = len(np.unique(y))
-        
-        # --- Check Stopping Criteria (Base Cases) ---
-        # 1. Max depth reached
-        if self.max_depth is not None and depth >= self.max_depth:
-            leaf_value = self.__most_common_label(y)
-            return Node(value=leaf_value)
-        
-        # 2. Only one class left (pure node)
-        if n_labels == 1:
-            leaf_value = self.__most_common_label(y)
-            return Node(value=leaf_value)
-        
-        # 3. Minimum samples to split not met
-        if n_samples < self.min_samples_split:
-            leaf_value = self.__most_common_label(y)
-            return Node(value=leaf_value)
-        
-        # --- Find and apply the best split ---
-        feature_idx, threshold = self.__best_split(X, y)
-        # If no split improves the gain (e.g., best gain = -1 if features are complex/bad)
-        if feature_idx is None:
-            leaf_value = self.__most_common_label(y)
-            return Node(value=leaf_value)
-        
-        # Get indices for the split
-        X_column = X[:, feature_idx]
-        left_indices = X_column <= threshold
-        right_indices = X_column > threshold
-        
-        # Recursive calls for children
-        left_child = self.__build_tree(X[left_indices], y[left_indices], depth + 1)
-        right_child = self.__build_tree(X[right_indices], y[right_indices], depth + 1)
-        
-        return Node(feature=feature_idx, threshold=threshold, left=left_child, right=right_child)
-    
-    ### Helper Method to find the most common label in a list
-    def __most_common_label(self, y):
-        """Return the most frequent class label in the array y"""
-        if len(y) == 0:
-            return None
-        # np.unique returns unique labels and their counts
-        values, counts = np.unique(y, return_counts=True)
-        # argmax returns the index of the maximum count, and use that index
-        # to get the corresponding value (label)
-        return values[np.argmax(counts)]
-    
-    ### --- Public API Methods ---
-    
-    def fit(self, X, y):
-        """
-        Builds the decision tree classifier from the training data (X, y).
-        """
-        self.n_features = X.shape[1]
-        self.root = self.__build_tree(X, y)
-        return self # Allows for chaining (e.g, tree.fit(X, y).predict(X_test))
-    
-    def __traverse_tree(self, x, node):
-        """
-        Recursively traverse the tree for a single data point x.
-        """
-        # Base case: if leaf node, return the predicted class value
-        if node.is_leaf():
-            return node.value
-        # Get the feature value for the split
-        feature_value = x[node.feature_idx]
-        
-        # Decide to go left or right based on the feature and threshold
-        if feature_value <= node.threshold:
-            return self.__traverse_tree(x, node.left)
-        else:
-            return self.__traverse_tree(x, node.right)
-    def predict(self, X):
-        """
-        Predicts class labels for the input data X.
-        
-        Parameters:
-        ----------
-        X: np.ndarray
-            The input data to predict on.
+        # Base Cases
+        if (len(np.unique(y)) == 1 or 
+            (self.max_depth is not None and depth >= self.max_depth) or
+            len(y) < self.min_samples_split):
             
-        Returns:
-        -------
-        np.ndarray
-            Predicted class labels for each input sample.
+            return Node(value=self._get_leaf_value(y))
+
+        feat_idx, threshold, gain = self._find_best_split(X, y)
+
+        if gain <= 0:
+            return Node(value=self._get_leaf_value(y))
+
+        left_mask = X[:, feat_idx] <= threshold
+        
+        X_left, y_left = X[left_mask], y[left_mask]
+        X_right, y_right = X[~left_mask], y[~left_mask]
+
+        left_child = self._build_tree(X_left, y_left, depth + 1)
+        right_child = self._build_tree(X_right, y_right, depth + 1)
+
+        return Node(feature=feat_idx, threshold=threshold, left=left_child, right=right_child)
+
+    # --- Public API ---
+
+    def fit(self, X: ArrayLike, y: ArrayLike) -> "DecisionTreeClassifier":
         """
-        ### Apply the transversal function to every row in X.
-        predictions = np.array([self.__traverse_tree(x, self.root) for x in X])
-        return predictions
-    
+        Builds the Decision Tree from the training data.
+        """
+        X_arr = ensure_2d_numeric(X, name="X")
+        y_arr = ensure_1d_vector(y, name="y")
+        check_Xy_shapes(X_arr, y_arr)
+        
+        self.n_features_ = X_arr.shape[1]
+        self
