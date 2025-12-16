@@ -31,7 +31,7 @@ class DecisionTreeRegressor:
         Minimum number of samples required to split an internal node.
     """
 
-    def __init__(self, criteron: Literal['mse', 'mae'] = 'mse',max_depth: Optional[int] = None, min_samples_split: int = 2, max_features: Optional[Union[str, float, int]] = None, 
+    def __init__(self, criterion: Literal['mse', 'mae'] = 'mse',max_depth: Optional[int] = None, min_samples_split: int = 2, max_features: Optional[Union[str, float, int]] = None, 
                  random_state: Optional[int] = None):
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
@@ -39,10 +39,13 @@ class DecisionTreeRegressor:
         self.random_state = random_state
         self.tree_: Optional[Node] = None
         self.n_features_: Optional[int] = None
-        if self.criteron == 'mse':
+        self.criterion = criterion
+        if self.criterion == 'mse': 
             self._impurity_func = variance
+        elif self.criterion == 'mae':
+            raise NotImplementedError("MAE criterion not yet implemented.")
         else:
-            raise ValueError(f"Unknown criterion: {criteron}")
+            raise ValueError(f"Unknown criterion: {criterion}")
         
     def _get_leaf_value(self, y: np.ndarray) -> float:
         """Determines the prediction value for a leaf node (the mean of the target values)."""
