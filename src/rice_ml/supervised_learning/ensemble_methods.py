@@ -225,3 +225,28 @@ class RandomForestClassifier(BaggingClassifier):
         )
         self.max_features = max_features
         self.max_depth = max_depth
+
+# ----- 5. Random Forest Regressor -----
+
+class RandomForestRegressor(BaggingRegressor):
+    """
+    Implements a Random Forest regressor (specialized BaggingRegressor). 
+    """
+    def __init__(self, n_estimators: int = 100, max_depth: Optional[int] = None, 
+                 max_features: Union[str, float, int] = 'sqrt', random_state: Optional[int] = None):
+        
+        # 1. Initialize the base estimator (Decision Tree Regressor)
+        base_estimator = DecisionTreeRegressor(
+            max_depth=max_depth, 
+            random_state=random_state, 
+            max_features=max_features 
+        )
+        
+        # 2. Call the BaggingRegressor constructor
+        super().__init__(
+            base_estimator=base_estimator,
+            n_estimators=n_estimators,
+            random_state=random_state
+        )
+        self.max_features = max_features
+        self.max_depth = max_depth
