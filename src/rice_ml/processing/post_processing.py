@@ -110,40 +110,29 @@ def _get_classification_stats(
     y_pred: np.ndarray,
     labels: Optional[Sequence] = None
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Internal helper to compute TP, FP, TN, FN for each class.
-    """
-    conf = confusion_matrix(y_true, y_pred, labels=labels)
-    labels_out = np.unique(np.concatenate((y_true, y_pred))) 
+    
+    # --- Simplified label handling ---
     if labels is None:
-        # Re-run to ensure labels are correct if confusion matrix didn't return them
-        all_labels = np.asarray(labels)
-    else: 
-    # labels in conf are orderred by the index order in confusion_matrix
-    # Will only use classes that appear in y_true or y_pred for simplicity
-        all_labels = np.unique(np.concatenate((y_true, y_pred)))
-    L = len(all_labels)
-    if conf.shape[0] != L:
-        if labels is None:
-            labels = np.unique(np.concatenate((y_true, y_pred)))
-        labels = np.asarray
-        L = len(labels)
-        label_to_idx = {lab: i for i, lab in enumerate(labels)}
-        y_true_idx = np.array([label_to_idx[lab] for lab in y_true])
-        y_pred_idx = np.array([label_to_idx.get(lab, -1) for lab in y_pred])
-        conf = np.zeros((L, L), dtype=int)
-        for t, p in zip(y_true_idx, y_pred_idx):
-            if t == -1 or p == -1: continue
-            conf[t, p] += 1
-        ## --- End Per-Class Stats Calculation ---
+        # Get all unique labels, sorted, for the matrix order
+        labels_out = np.unique(np.concatenate((y_true.astype(str), y_pred.astype(str))))
+    else:
+        # Use provided labels (converted to string) as the order
+        labels_out = np.array([str(lab) for lab in labels])
+        
+    # Generate the confusion matrix using the fixed function
+    conf = confusion_matrix(y_true, y_pred, labels=labels_out)
+    
+    L = len(labels_out)
     total_samples = conf.sum()
+    
+    # Per-class metrics calculation
     tp = np.diag(conf).astype(float)
-    fp = conf.sum(axis=0)- tp # column sum - tp
+    fp = conf.sum(axis=0) - tp # column sum - tp
     fn = conf.sum(axis=1) - tp # row sum - tp
     tn = total_samples - (tp + fp + fn)
-    support = conf.sum(axis=1) # true positives + false negatives
+    support = conf.sum(axis=1) # row sum (true positives + false negatives)
     
-    return tp, fp, tn, fn, support, labels
+    return tp, fp, tn, fn, support, labels_out
 
 # ------ Classification Metrics ------
 
@@ -312,24 +301,56 @@ def confusion_matrix(
 ) -> np.ndarray:
     """
     Confusion matrix for classification.
+
+    Parameters
+    ----------
+    y_true : ArrayLike, shape (n_samples,)
+        True target values.
+    y_pred : ArrayLike, shape (n_samples,)
+        Estimated targets as returned by a classifier.
+    labels : sequence, optional
+        List of labels to index the matrix. If None, all unique labels 
+        in y_true and y_pred are used, sorted alphabetically.
+
+    Returns
+    -------
+    conf : np.ndarray, shape (L, L)
+        Confusion matrix where L is the number of labels.
+        Row i corresponds to true label i, and column j corresponds to predicted label j.
     """
     yt, yp = _validate_pair(y_true, y_pred)
-    yt_str = yt.astype(str)
-    yp_str = yp.astype(str)
-    labels_str = [str(lab) for lab in labels] if labels is not None else None
-    if labels_str is not None:
-        labels_out = np.unique(np.concatenate((yt_str, yp_str)))
-    else:
-        labels_out = np.asarray(labels_str)
-    L = len(labels_out)
-    label_to_idx = {lab: i for i, lab in enumerate(labels_out)}
-    y_true_idx = np.array([label_to_idx(lab, -1) for lab in yt_str])
-    y_pred_idx = np.array([label_to_idx.get(lab, -1) for lab in yp_str])
     
+    # 1. Determine the final, ordered list of labels (labels_out)
+    if labels is not None:
+        # Use provided labels and convert them all to strings for consistency
+        labels_out = np.array([str(lab) for lab in labels])
+    else:
+        # Get all unique labels from both arrays, convert to string, and sort
+        all_labels = np.unique(np.concatenate((yt.astype(str), yp.astype(str))))
+        # Filter out labels that don't appear in either y_true or y_pred (already done by unique)
+        labels_out = np.sort(all_labels)
+
+    L = len(labels_out)
+    
+    # 2. Create the mapping from label value (string) to matrix index (integer)
+    label_to_idx = {lab: i for i, lab in enumerate(labels_out)}
+    
+    # 3. Convert y_true and y_pred into arrays of indices
+    
+    # Index array for true labels
+    y_true_idx = np.array([label_to_idx.get(str(lab), -1) for lab in yt])
+    # Index array for predicted labels
+    y_pred_idx = np.array([label_to_idx.get(str(lab), -1) for lab in yp])
+    
+    # 4. Initialize and populate the confusion matrix
     conf = np.zeros((L, L), dtype=int)
+    
+    # Populate the matrix using a loop over the indices
     for t, p in zip(y_true_idx, y_pred_idx):
-        if t == -1 or p == -1: continue
-        conf[t, p] += 1
+        # Skip if label was not in the 'labels' sequence
+        if t != -1 and p != -1: 
+            conf[t, p] += 1
+            
     return conf
 
 def classification_report(
