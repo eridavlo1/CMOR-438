@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rice-ml"
+version = "0.1.0"
+description = "Machine Learning library for CMOR-438"
+authors = [{ name = "Erika D. Vasquez", email = "erika.vasquez@rice.edu" }]
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+keywords = ["machine-learning", "deep-learning", "data-science"]
+
+dependencies = [
+    "numpy>=1.20.0",
+    "scipy>=1.6.0",
+    "scikit-learn>=1.0.0"
+]
+
+[project.optional-dependencies]
+dev = ["pytest]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.urls]
+"Homepage" = "https://github.com/eridavlo1/CMOR-438"
+
+# --- Configuration for Packaging ---
+[tool.setuptools]
+# Tell setuptools that the actual source code is located in the 'src' directory
+package-dir = {"" = "src"}
+
+[tool.pytest.ini_options]
+addopts = "--doctest-modules"
+doctest_optionflags = ["NORMALIZE_WHITESPACE", "ELLIPSIS"]
+testpaths = ["src/rice_ml/supervised_learning", "tests"]
