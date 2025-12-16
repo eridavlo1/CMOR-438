@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Optional, Union, Sequence, List, Literal, Callable
-from .post_processing import r2_score
+from ..processing.post_processing import r2_score
 import warnings
 
 
