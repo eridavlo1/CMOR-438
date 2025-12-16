@@ -39,6 +39,10 @@ class DecisionTreeRegressor:
         self.random_state = random_state
         self.tree_: Optional[Node] = None
         self.n_features_: Optional[int] = None
+        if self.criteron == 'mse':
+            self._impurity_func = variance
+        else:
+            raise ValueError(f"Unknown criterion: {criteron}")
         
     def _get_leaf_value(self, y: np.ndarray) -> float:
         """Determines the prediction value for a leaf node (the mean of the target values)."""
