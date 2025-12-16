@@ -1,34 +1,52 @@
-# Decision Tree Regressor
+# Supervised Learning Examples
 
-This package provides an implementation of the Decision Tree Regressor using the CART (Classification and Regression Tree) algorithm. Unlike classification trees that predict a category, regression trees predict a continuous numerical value.
+This directory contains executable Jupyter Notebooks (`.ipynb`) demonstrating the implementation and usage of every supervised machine learning algorithm available in the `rice_ml` library.
 
-## Algorithm Overview
+## Goal
 
-A regression tree works by recursively splitting the data into subsets such that the samples within each resulting node become increasingly homogeneous with respect to the target value ($y$).
+The notebooks in this folder serve as functional documentation, showcasing:
 
-### Splitting Criterion: Variance Reduction
-
-The core mechanism for finding the best split is minimizing the error (or disorder) in the child nodes. For regression, this is achieved by minimizing the **Variance** within each node.
-
-* **Metric:** The model uses **Variance Reduction** (based on Mean Squared Error, or MSE) as the impurity measure. 
-* **Process:** At every node, the model evaluates potential splits across all features and selects the split that results in the largest drop in the total weighted variance of the resulting child nodes.
-* **Prediction:** When a sample reaches a **leaf node**, the final predicted value is the **mean** of all target values of the training samples contained in that leaf.
-
-## Key Hyperparameters
-
-| Parameter | Description | Relevance |
-| :--- | :--- | :--- |
-| `max_depth` | The maximum depth the tree is allowed to grow. Controls overfitting; smaller values lead to simpler models. | Pruning |
-| `min_samples_split` | The minimum number of samples a node must contain to attempt a split. Prevents splits on tiny subsets. | Pruning |
-| `max_features` | The number of random features to consider at each split. Primarily used to enable **Random Forest** algorithms (via ensemble methods). | Randomness |
-| `criterion` | The function to measure the quality of a split. Currently only `'mse'` (Variance) is implemented. | Splitting |
-| `random_state` | Seed for reproducibility, especially when `max_features` is used. | Reproducibility |
+1. How to correctly initialize and configure each model.
+2. The necessary data preprocessing steps (e.g., scaling for Gradient Descent, target encoding for Perceptron).
+3. The core mechanisms (e.g., Variance Reduction in Regression Trees, Backpropagation in MLP).
+4. Evaluation of performance using standard metrics (e.g., Accuracy, $R^2$).
 
 ---
 
-## Data Requirements
+## Available Model Examples
 
-The Decision Tree Regressor accepts numeric data but does not require feature scaling, as its splits are based on thresholds rather than distance metrics.
+### 1. Decision Trees
 
-* **Features ($\mathbf{X}$):** Must be a 2D numeric array.
-* **Targets ($\mathbf{Y}$):** Must be a 1D array of continuous floating-point numbers.
+| Directory | Model Type | Description |
+| :--- | :--- | :--- |
+| `Decision_Trees` | **Decision Tree Classifier** | Demonstrates classification using the CART algorithm with impurity criteria (Gini or Entropy). The notebook showcases how the model finds discrete decision boundaries. |
+| `Regression_Trees` | **Decision Tree Regressor** | Demonstrates regression using the CART algorithm with **Variance Reduction** as the splitting criterion. Focuses on predicting continuous values. |
+
+### 2. Linear Models
+
+| Directory | Model Type | Description |
+| :--- | :--- | :--- |
+| `Linear_Regression` | **Linear Regression** | Demonstrates the core linear regression methods: the closed-form **Ordinary Least Squares (OLS)**, **Ridge Regression** (regularized OLS), and the iterative **Gradient Descent (GD)** approach. |
+| `Logistic_Regression` | **Logistic Regression** | Demonstrates binary classification using the **Sigmoid** function and optimized via **Batch Gradient Descent**. Highlights the necessity of feature scaling and $\mathbf{\{0, 1\}}$ target encoding. |
+| `Perceptron` | **Perceptron** | Demonstrates the simplest linear classifier, showcasing its **error-correction learning rule**. The notebook emphasizes the strict requirement for $\mathbf{\{-1, 1\}}$ target encoding and linear separability. |
+| `Multilayer_Perceptron` | **MLP Binary Classifier** | Demonstrates a foundational neural network, including multiple hidden layers, **ReLU** activation, and the use of **Backpropagation** and Binary Cross-Entropy Loss to solve non-linear classification problems. |
+
+### 3. Instance-Based and Ensemble Methods
+
+| Directory | Model Type | Description |
+| :--- | :--- | :--- |
+| `K_Nearest_Neighbors` | **KNN Classifier/Regressor** | Demonstrates the **lazy learning** method. The notebook shows how predictions are based on the distances to the *k* nearest neighbors, comparing the different distance metrics (Euclidean, Manhattan). |
+| `Ensemble_Methods` | **Bagging Regressor/Classifier** | Demonstrates ensemble techniques, specifically **Bagging (Bootstrap Aggregating)**. This example showcases how to combine multiple base estimators (like Decision Trees) to create a more robust and accurate model. |
+
+---
+
+## Running the Examples
+
+1. **Navigate** to the specific algorithm folder you wish to explore (e.g., `examples/Supervised_Learning/Decision_Trees`).
+2. **Open** the corresponding `.ipynb` file (e.g., `decision_trees_example.ipynb`).
+3. **Ensure** your `rice_ml` package is installed and accessible in your environment.
+4. **Run** the cells sequentially to observe the training, evaluation, and convergence processes.
+
+***
+**Note on Data:** Most notebooks utilize standard datasets from Scikit-learn (e.g., Iris, synthetic data) for quick, reproducible demonstrations
+***
