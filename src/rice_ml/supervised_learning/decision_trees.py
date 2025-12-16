@@ -126,6 +126,20 @@ class DecisionTreeClassifier:
         right_child = self._build_tree(X_right, y_right, depth + 1)
 
         return Node(feature=feat_idx, threshold=threshold, left=left_child, right=right_child)
+    
+    def _traverse_tree_and_predict(self, x: np.ndarray, node: Node) -> Any:
+        """
+        Recursively traverses the trained decision tree for a single sample 'x'.
+        """
+        if node.is_leaf():
+            return node.value
+        
+        # Check if the feature value is less than or equal to the split threshold
+        if x[node.feature] <= node.threshold:
+            return self._traverse_tree_and_predict(x, node.left)
+        else:
+            return self._traverse_tree_and_predict(x, node.right)
+    
 
     # --- Public API ---
 
@@ -138,4 +152,30 @@ class DecisionTreeClassifier:
         check_Xy_shapes(X_arr, y_arr)
         
         self.n_features_ = X_arr.shape[1]
+        self.tree_ = self._build_tree(X_arr, y_arr, depth=0)
         self
+        
+    def predict(self, X: ArrayLike) -> np.ndarray:
+        """
+        Predict class labels for samples in X.
+
+        Parameters
+        ----------
+        X : array_like, shape (n_samples, n_features)
+            The input samples.
+
+        Returns
+        -------
+        y_pred : np.ndarray, shape (n_samples,)
+            The predicted class labels.
+        """
+        X_arr = ensure_2d_numeric(X, name="X")
+
+        if self.tree_ is None:
+            raise RuntimeError("Model must be trained before calling predict.")
+        
+        # Iterate over all samples in X_arr and use the helper function 
+        # to find the prediction for each one.
+        y_pred = np.array([self._traverse_tree_and_predict(sample, self.tree_) for sample in X_arr])
+        
+        return y_pred
