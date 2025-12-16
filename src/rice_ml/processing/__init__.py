@@ -1,2 +1,2 @@
-from ..processing.preprocessing import *
-from ..processing.post_processing import *
+from .preprocessing import *
+from .post_processing import *
