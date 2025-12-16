@@ -42,10 +42,11 @@ class DecisionTreeClassifier:
     """
     
     def __init__(self, criterion: Literal['gini', 'entropy'] = 'gini', max_depth: Optional[int] = None, 
-                 min_samples_split: int = 2, random_state: Optional[int] = None):
+                 min_samples_split: int = 2, max_features: Optional[Union[str, float, int]] = None, random_state: Optional[int] = None):
         self.criterion = criterion
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
+        self.max_features = max_features
         self.random_state = random_state
         self.tree_: Optional[Node] = None 
         self.classes_: Optional[np.ndarray] = None
@@ -73,6 +74,20 @@ class DecisionTreeClassifier:
         n_samples, n_features = X.shape
         if n_samples < self.min_samples_split:
             return None, None, 0.0
+        
+        # --- Random Feature Subset Logic ---
+        rng = np.random.default_rng(self.random_state)
+        
+        if self.max_features is None:
+            feature_indices = np.arrange(n_features)
+        elif isinstance(self.max_features, str) and self.max_features == 'sqrt':
+            k = int(np.sqrt(n_features))
+            feature_indices = rng.choice(n_features, size=k, replace=False)
+        elif isinstance(self.max_features, int):
+            k = min(self.max_features, n_features)
+            features_indices = rng.choice(n_features, size = k, replace = False)
+        else: 
+            raise ValueError(f"Invalid max_features value: {self.max_features}")
 
         best_gain = -1.0
         best_feature_idx = None
