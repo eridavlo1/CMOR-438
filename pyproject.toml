@@ -19,21 +19,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest]
-
-[tool.setuptools]
-package-dir = { "" = "src" }
-
-[tool.setuptools.packages.find]
-where = ["src"]
+dev = ["pytest"] 
 
 [project.urls]
 "Homepage" = "https://github.com/eridavlo1/CMOR-438"
 
-# --- Configuration for Packaging ---
 [tool.setuptools]
-# Tell setuptools that the actual source code is located in the 'src' directory
-package-dir = {"" = "src"}
+package-dir = {"" = "src"} 
 
 [tool.pytest.ini_options]
 addopts = "--doctest-modules"
