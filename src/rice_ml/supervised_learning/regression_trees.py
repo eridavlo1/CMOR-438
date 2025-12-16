@@ -31,10 +31,11 @@ class DecisionTreeRegressor:
         Minimum number of samples required to split an internal node.
     """
 
-    def __init__(self, max_depth: Optional[int] = None, min_samples_split: int = 2, 
+    def __init__(self, criteron: Literal['mse', 'mae'] = 'mse',max_depth: Optional[int] = None, min_samples_split: int = 2, max_features: Optional[Union[str, float, int]] = None, 
                  random_state: Optional[int] = None):
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
+        self.max_features = max_features
         self.random_state = random_state
         self.tree_: Optional[Node] = None
         self.n_features_: Optional[int] = None
@@ -52,32 +53,74 @@ class DecisionTreeRegressor:
         n_samples, n_features = X.shape
         if n_samples < self.min_samples_split:
             return None, None, 0.0
+        
+        # --- Random Feature Subset Logic ---
+        rng = np.random.default_rng(self.random_state)
+        
+        if self.max_features is None:
+            # Consider all features
+            feature_indices = np.arange(n_features)
+        else:
+            # Calculate 'k' (number of features to sample)
+            if isinstance(self.max_features, str):
+                if self.max_features == 'sqrt':
+                    k = max(1, int(np.sqrt(n_features)))
+                elif self.max_features == 'log2':
+                    k = max(1, int(np.log2(n_features)))
+                else:
+                    raise ValueError(f"Unknown string value for max_features: {self.max_features}")
+            elif isinstance(self.max_features, float): # Fraction of features (e.g., 0.5)
+                k = max(1, int(self.max_features * n_features))
+            elif isinstance(self.max_features, int):
+                k = self.max_features
+            else:
+                raise ValueError(f"Invalid max_features type: {type(self.max_features)}")
+                
+            # Ensure k does not exceed total features
+            k = min(k, n_features)
+            
+            # Randomly select the feature indices without replacement
+            feature_indices = rng.choice(n_features, size=k, replace=False)
 
-        best_gain = -1.0
+        best_reduction = 0.0
         best_feature_idx = None
         best_threshold = None
-        y_parent = y
+        
 
-        for feature_idx in range(n_features):
-            unique_values = np.unique(X[:, feature_idx])
+        # Calculate impurity (variance) of the parent node
+        parent_impurity = self._impurity_func(y) # Assuming _impurity_func is set to variance/mse
+        
+        for feat_idx in feature_indices:
+            unique_values = np.unique(X[:, feat_idx])
             
             for threshold in unique_values:
-                left_mask = X[:, feature_idx] <= threshold
+                left_mask = X[:, feat_idx] <= threshold
                 y_left = y[left_mask]
                 y_right = y[~left_mask]
 
+                # Skip if the split results in an empty node
                 if len(y_left) == 0 or len(y_right) == 0:
                     continue
 
-                # Use the centralized information_gain helper with the 'variance' metric
-                gain = information_gain(y_parent, y_left, y_right, metric='variance')
+                # Calculate weighted impurity of children
+                n_left, n_right = len(y_left), len(y_right)
+                n_total = n_samples
                 
-                if gain > best_gain:
-                    best_gain = gain
-                    best_feature_idx = feature_idx
+                # Calculate the weighted impurity of the split
+                weighted_children_impurity = (
+                    (n_left / n_total) * self._impurity_func(y_left) +
+                    (n_right / n_total) * self._impurity_func(y_right)
+                )
+
+                # Variance Reduction (Information Gain equivalent for regression)
+                reduction = parent_impurity - weighted_children_impurity
+                
+                if reduction > best_reduction:
+                    best_reduction = reduction
+                    best_feature_idx = feat_idx
                     best_threshold = threshold
 
-        return best_feature_idx, best_threshold, best_gain
+        return best_feature_idx, best_threshold, best_reduction
     
     def _build_tree(self, X: np.ndarray, y: np.ndarray, depth: int) -> Node:
         """
