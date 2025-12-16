@@ -55,7 +55,7 @@ def _ensure_1d(y: ArrayLike, name: str) -> np.ndarray:
 
 def _ensure_1d_numeric(y: NumArrayLike, name: str) -> np.ndarray:
     arr = _ensure_1d(y, name)
-    if not np.issubdubdtype(arr.dtype, np.number):
+    if not np.issubdtype(arr.dtype, np.number):
         try:
             arr = arr.astype(float, copy=False)
         except (TypeError, ValueError) as e:
@@ -104,6 +104,7 @@ def _validate_probs(y_true: ArrayLike, y_prob: ArrayLike) -> Tuple[np.ndarray, n
     if np.any(probs < 0) or np.any(probs > 1) or np.any(~np.isfinite(probs)):
         raise ValueError("All probability values must be in the range [0, 1] and finite.")
     return yt, probs, K
+
 
 def _get_classification_stats(
     y_true: np.ndarray,
