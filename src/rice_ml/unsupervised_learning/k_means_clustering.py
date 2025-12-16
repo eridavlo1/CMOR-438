@@ -1,8 +1,8 @@
 import numpy as np
 from typing import Optional, Union, Sequence, Any, Tuple, List, Literal
 import warnings
-from rice_ml.utils import ArrayLike, ensure_2d_numeric 
-from rice_ml.supervised_learning.distances_metrics import euclidean_distance
+from ..utils.validation import ArrayLike, ensure_2d_numeric 
+from ..utils.distances_metrics import euclidean_distance
 
 class KMeans:
     """
@@ -106,14 +106,14 @@ class KMeans:
 
         for i in range(n_samples):
             x = X[i]
-            # Calculate Euclidean distance from x to ALL centers (requires a vector operation or loop)
-            # Use the imported or local helper:
-            distances = [np.sum((x - center) ** 2) for center in centers]
+            # Calculate Euclidean distance from x to ALL centers using helper function
+            distances = [euclidean_distance(x, center) for center in centers]
             
             # Find the index of the closest center
             closest_center_index = np.argmin(distances)
             labels[i] = closest_center_index
-            inertia += distances[closest_center_index] # Sum of squared distances (inertia)
+            closest_distance = distances[closest_center_index]
+            inertia += closest_distance ** 2
             
         return labels, inertia
     

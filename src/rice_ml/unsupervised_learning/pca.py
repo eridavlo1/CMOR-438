@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Optional, Union, Sequence, Any, Literal, Tuple
 import warnings
-from rice_ml.utils import ArrayLike, ensure_2d_numeric 
+from ..utils import ArrayLike, ensure_2d_numeric 
 
 class PCA:
     """

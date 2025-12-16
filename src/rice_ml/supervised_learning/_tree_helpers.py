@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Union, Optional, Sequence, Any, Tuple
-from rice_ml.post_processing import mse
+from ..processing.post_processing import mse
 
 # --- Impurity/Variance Functions ---
 

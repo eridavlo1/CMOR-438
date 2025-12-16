@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Optional, Union, Sequence, Any, List, Tuple
 import warnings
-from .utils.validation import ArrayLike, ensure_2d_numeric 
+from ..utils.validation import ArrayLike, ensure_2d_numeric, ensure_1d_vector 
 
 # --- Helper Definitions ---
 

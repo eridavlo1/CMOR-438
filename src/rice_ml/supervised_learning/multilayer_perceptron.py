@@ -1,7 +1,9 @@
 import numpy as np
 from typing import List, Optional, Tuple, Union, Sequence, Any
 import warnings
-from .utils.validation import ArrayLike, ensure_2d_numeric 
+from ..utils.validation import ArrayLike, ensure_2d_numeric, ensure_1d_vector, check_Xy_shapes
+from ._linear_helpers import sigmoid, relu, relu_derivative
+from .gradient_descent import GradientDescentOptimizer
 
 class MLPBinaryClassifier:
     """

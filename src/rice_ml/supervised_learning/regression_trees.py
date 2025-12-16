@@ -1,8 +1,7 @@
 import numpy as np
 from typing import Optional, Union, Sequence, Any, Tuple, Literal
-
-from rice_ml.utils import ArrayLike, ensure_2d_numeric, ensure_1d_vector, check_Xy_shapes
-from rice_ml.supervised_learning._tree_helpers import variance, information_gain 
+from ..utils import ArrayLike, ensure_2d_numeric, ensure_1d_vector, check_Xy_shapes
+from ._tree_helpers import variance, information_gain
 
 # --- Internal Node Class ---
 class Node:
