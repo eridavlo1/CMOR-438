@@ -19,14 +19,14 @@ ArrayLike = Union[np.ndarray, Sequence[float], Sequence[Sequence[float]]]
 # ---- Internal Validation Helper ---- #
 
 def _check_for_nan_inf(arr: np.ndarray, name: str) -> None:
-    """Check for NaN and Inf values and raise ValueError."""
+    r"""Check for NaN and Inf values and raise ValueError."""
     if np.isnan(arr).any():
         raise ValueError(f"Input array {name} contains NaN values. Please handle missing data before preprocessing.")
     if np.isinf(arr).any():
         raise ValueError(f"Input array {name} contains Infinite values. Please handle extreme data before preprocessing.")
 
 def _ensure_2d_numeric(X: ArrayLike, name: str = "X") -> np.ndarray:
-    """Ensure X is a 2D numeric NumPy array."""
+    r"""Ensure X is a 2D numeric NumPy array."""
     arr = np.asarray(X)
     if arr.ndim != 2:
         raise ValueError(f"{name} must be a 2D array; got {arr.ndim}D.")
@@ -80,7 +80,7 @@ def standardize(
     mean: Optional[np.ndarray] = None,
     scale: Optional[np.ndarray] = None,
 ) -> Union[np.ndarray, Tuple[np.ndarray, dict]]:
-    """
+    r"""
     Z-score standardization (feature-wise).
     
     This function can be used in two modes:
@@ -167,7 +167,7 @@ def minmax_scale(
     feature_range: Tuple[float, float] = (0.0, 1.0),
     return_params: bool = False,
 ) -> Union[np.ndarray, Tuple[np.ndarray, dict]]:
-    """
+    r"""
     Scale features to a specified range (feature-wise). 
 
     The transformation is: `X_scaled = (X - min) / (max - min) * (max' - min') + min'`.
@@ -243,7 +243,7 @@ def maxabs_scale(
     *,
     return_params: bool = False,
 ) -> Union[np.ndarray, Tuple[np.ndarray, dict]]:
-    """
+    r"""
     Scale features by their maximum absolute value (feature-wise).
 
     The transformation is: `X_scaled = X / max(|X|)`.
@@ -294,7 +294,7 @@ def maxabs_scale(
 
 
 def l1_normalize_rows(X: ArrayLike, *, eps: float = 1e-12) -> np.ndarray:
-    """
+    r"""
     Row-wise L1 normalization (sum of absolute values = 1).
 
     Each row x is replaced by x / max(||x||_1, eps). Rows containing all zeros 
@@ -338,7 +338,7 @@ def l1_normalize_rows(X: ArrayLike, *, eps: float = 1e-12) -> np.ndarray:
     return X / denom
 
 def l2_normalize_rows(X: ArrayLike, *, eps: float = 1e-12) -> np.ndarray:
-    """
+    r"""
     Row-wise L2 normalization (Euclidean norm = 1). 
 
     Each row x is replaced by x / max(||x||_2, eps). Rows containing all zeros 
@@ -384,7 +384,7 @@ def l2_normalize_rows(X: ArrayLike, *, eps: float = 1e-12) -> np.ndarray:
 # --- Splitting ---
 
 def _stratified_indices(y: np.ndarray, split_size: float, rng: np.random.Generator):
-    """
+    r"""
     Internal helper to return train/test indices with class-wise proportional sampling.
     """
     classes, y_indices = np.unique(y, return_inverse=True)
@@ -413,15 +413,19 @@ def _stratified_indices(y: np.ndarray, split_size: float, rng: np.random.Generat
 
 def train_test_split(X, y=None, test_size=0.25, random_state=None, shuffle=True, stratify=None):
     r"""
-    Split arrays into random train and test subsets.
+    Split arrays into random train and test subsets with validation and stratification.
     """
     X = np.asanyarray(X)
+    
+    # Validation for X dimensionality
     if X.ndim != 2:
         raise ValueError("X must be a 2D array.")
         
+    # Validation for test_size range
     if not (0.0 < test_size < 1.0):
         raise ValueError("test_size must be a float in (0, 1).")
         
+    # Validation for random_state type
     if random_state is not None and not isinstance(random_state, int):
         raise TypeError("random_state must be an integer or None.")
 
@@ -433,6 +437,7 @@ def train_test_split(X, y=None, test_size=0.25, random_state=None, shuffle=True,
         if y.shape[0] != n_samples:
             raise ValueError("X and y must have a compatible first dimension.")
 
+    # Handle Stratification
     if stratify is not None:
         y_strat = np.asanyarray(stratify)
         if y_strat.shape[0] != n_samples:
@@ -446,6 +451,9 @@ def train_test_split(X, y=None, test_size=0.25, random_state=None, shuffle=True,
             idx_class = indices[y_indices == i]
             rng.shuffle(idx_class)
             split = int(len(idx_class) * (1 - test_size))
+            # Ensure at least one sample in test if possible
+            if split == len(idx_class) and len(idx_class) > 0:
+                split -= 1
             train_idx.extend(idx_class[:split])
             test_idx.extend(idx_class[split:])
             
@@ -457,7 +465,7 @@ def train_test_split(X, y=None, test_size=0.25, random_state=None, shuffle=True,
         split_idx = int(n_samples * (1 - test_size))
         train_idx, test_idx = indices[:split_idx], indices[split_idx:]
     else:
-        # Sequential split when shuffle=False
+        # Strictly sequential split for shuffle=False
         split_idx = int(n_samples * (1 - test_size))
         train_idx, test_idx = indices[:split_idx], indices[split_idx:]
 
@@ -466,7 +474,7 @@ def train_test_split(X, y=None, test_size=0.25, random_state=None, shuffle=True,
     return X[train_idx], X[test_idx]
 
 def train_val_test_split(X, y=None, val_size=0.2, test_size=0.2, random_state=None, stratify=None):
-    r"""3-way split supporting stratification."""
+    """3-way split supporting stratification and size validation."""
     if (val_size + test_size) >= 1.0:
         raise ValueError("val_size + test_size must be < 1.0")
 
@@ -474,6 +482,7 @@ def train_val_test_split(X, y=None, val_size=0.2, test_size=0.2, random_state=No
         X_temp, X_test, y_temp, y_test = train_test_split(
             X, y, test_size=test_size, random_state=random_state, stratify=stratify
         )
+        # Recalculate val_size relative to the remaining data
         rel_val_size = val_size / (1 - test_size)
         X_train, X_val, y_train, y_val = train_test_split(
             X_temp, y_temp, test_size=rel_val_size, random_state=random_state, 

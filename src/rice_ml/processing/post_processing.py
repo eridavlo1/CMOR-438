@@ -1,8 +1,7 @@
 import numpy as np
-from typing import Union, Optional
 
 def _ensure_1d_numeric(arr, name):
-    r"""Forces float conversion to avoid <U1 string errors."""
+    r"""Forces float conversion to avoid string-array errors and validates dimensions."""
     try:
         arr = np.asarray(arr, dtype=float)
     except (TypeError, ValueError) as e:
@@ -13,107 +12,74 @@ def _ensure_1d_numeric(arr, name):
 
 # ----- Classification Metrics -----
 
-def accuracy_score(y_true, y_pred): return np.mean(np.asarray(y_true) == np.asarray(y_pred))
+def confusion_matrix(y_true, y_pred, labels=None):
+    yt, yp = np.asarray(y_true), np.asarray(y_pred)
+    if labels is None:
+        labels = np.unique(np.concatenate([yt, yp]))
+    n = len(labels)
+    label_map = {val: i for i, val in enumerate(labels)}
+    cm = np.zeros((n, n), dtype=int)
+    for t, p in zip(yt, yp):
+        if t in label_map and p in label_map:
+            cm[label_map[t], label_map[p]] += 1
+    return cm
 
-def precision_score(y_true, y_pred, average="binary") -> float:
-    r"""Compute precision score."""
-    yt = np.asarray(y_true)
-    yp = np.asarray(y_pred)
-    
+def precision_score(y_true, y_pred, average="binary"):
+    yt, yp = np.asarray(y_true), np.asarray(y_pred)
     classes = np.unique(yt)
     if average == "binary" and len(classes) > 2:
         raise ValueError("binary average requires exactly two classes")
-
-    cm = confusion_matrix(yt, yp)
     
+    cm = confusion_matrix(yt, yp)
     if average == "binary":
-        # Precision = TP / (TP + FP)
-        tp = cm[1, 1]
-        fp = cm[0, 1]
+        tp, fp = cm[1, 1], cm[0, 1]
         return tp / (tp + fp) if (tp + fp) > 0 else 0.0
-
+    
+    # Macro/Micro implementations
     if average == "macro":
-        precisions = []
-        for i in range(len(cm)):
-            tp = cm[i, i]
-            fp = np.sum(cm[:, i]) - tp
-            precisions.append(tp / (tp + fp) if (tp + fp) > 0 else 0.0)
-        return np.mean(precisions)
+        ps = [cm[i,i] / np.sum(cm[:,i]) if np.sum(cm[:,i]) > 0 else 0.0 for i in range(len(cm))]
+        return np.mean(ps)
+    return np.trace(cm) / np.sum(cm) # Micro (equivalent to Accuracy)
 
-    if average == "micro":
-        tp_sum = np.trace(cm)
-        fp_sum = np.sum(cm) - tp_sum
-        return tp_sum / (tp_sum + fp_sum)
-
-def recall_score(y_true, y_pred, average="binary") -> float:
-    r"""Compute recall score."""
-    yt = np.asarray(y_true)
-    yp = np.asarray(y_pred)
+def recall_score(y_true, y_pred, average="binary"):
+    yt, yp = np.asarray(y_true), np.asarray(y_pred)
     cm = confusion_matrix(yt, yp)
-    
     if average == "binary":
-        # Recall = TP / (TP + FN)
-        tp = cm[1, 1]
-        fn = cm[1, 0]
+        tp, fn = cm[1, 1], cm[1, 0]
         return tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    
     if average == "macro":
-        recalls = []
-        for i in range(len(cm)):
-            tp = cm[i, i]
-            fn = np.sum(cm[i, :]) - tp
-            recalls.append(tp / (tp + fn) if (tp + fn) > 0 else 0.0)
-        return np.mean(recalls)
-    
-    if average == "micro":
-        tp_sum = np.trace(cm)
-        fn_sum = np.sum(cm) - tp_sum
-        return tp_sum / (tp_sum + fn_sum)
+        rs = [cm[i,i] / np.sum(cm[i,:]) if np.sum(cm[i,:]) > 0 else 0.0 for i in range(len(cm))]
+        return np.mean(rs)
+    return np.trace(cm) / np.sum(cm)
 
-def f1_score(y_true, y_pred, average="binary") -> float:
-    r"""Compute F1 score."""
+def f1_score(y_true, y_pred, average="binary"):
     p = precision_score(y_true, y_pred, average=average)
     r = recall_score(y_true, y_pred, average=average)
-    if (p + r) == 0:
-        return 0.0
-    return 2 * (p * r) / (p + r)
+    return 2 * p * r / (p + r) if (p + r) > 0 else 0.0
 
-def confusion_matrix(y_true, y_pred, labels=None) -> np.ndarray:
-    r"""Compute confusion matrix to evaluate the accuracy of a classification."""
-    yt = np.asarray(y_true)
-    yp = np.asarray(y_pred)
-    if labels is None:
-        labels = np.unique(np.concatenate([yt, yp]))
-    
-    n_labels = len(labels)
-    label_to_ind = {l: i for i, l in enumerate(labels)}
-    cm = np.zeros((n_labels, n_labels), dtype=int)
-    
-    for t, p in zip(yt, yp):
-        if t in label_to_ind and p in label_to_ind:
-            cm[label_to_ind[t], label_to_ind[p]] += 1
-    return cm
+def accuracy_score(y_true, y_pred):
+    return np.mean(np.asarray(y_true) == np.asarray(y_pred))
 
 def roc_auc_score(y_true, y_score):
     yt = np.asarray(y_true)
     ys = _ensure_1d_numeric(y_score, "y_score")
     uniq = np.unique(yt)
-    
     if uniq.size == 1:
         raise ValueError("y_true must contain at least one sample from each class")
     if uniq.size != 2:
         raise ValueError("ROC AUC score is only defined for binary classification.")
-        
     order = np.argsort(ys, kind="mergesort")
     ranks = np.empty_like(order, dtype=float)
     ranks[order] = np.arange(1, len(yt) + 1)
-    
     n_pos = np.sum(yt == uniq[1])
     n_neg = len(yt) - n_pos
     return (np.sum(ranks[yt == uniq[1]]) - n_pos * (n_pos + 1) / 2) / (n_pos * n_neg)
 
 def log_loss(y_true, y_prob, eps=1e-15):
     yt = np.asarray(y_true)
+    y_prob = np.asarray(y_prob)
+    if np.any((y_prob < 0) | (y_prob > 1)):
+        raise ValueError("Probabilities must be in the range [0, 1].")
     p = np.clip(y_prob, eps, 1 - eps)
     if p.ndim == 1:
         return -np.mean(yt * np.log(p) + (1 - yt) * np.log(1 - p))
@@ -124,18 +90,19 @@ def log_loss(y_true, y_prob, eps=1e-15):
 
 def mse(y_true, y_pred):
     yt, yp = _ensure_1d_numeric(y_true, "y_true"), _ensure_1d_numeric(y_pred, "y_pred")
+    if yt.shape[0] != yp.shape[0]:
+        raise ValueError("y_true and y_pred must have the same length.")
     return np.mean((yt - yp) ** 2)
 
 def mae(y_true, y_pred):
     yt, yp = _ensure_1d_numeric(y_true, "y_true"), _ensure_1d_numeric(y_pred, "y_pred")
     return np.mean(np.abs(yt - yp))
 
-def rmse(y_true, y_pred): return np.sqrt(mse(y_true, y_pred))
-
+def rmse(y_true, y_pred):
+    return np.sqrt(mse(y_true, y_pred))
 
 def r2_score(y_true, y_pred):
-    yt = _ensure_1d_numeric(y_true, "y_true")
-    yp = _ensure_1d_numeric(y_pred, "y_pred")
+    yt, yp = _ensure_1d_numeric(y_true, "y_true"), _ensure_1d_numeric(y_pred, "y_pred")
     ss_res = np.sum((yt - yp) ** 2)
     ss_tot = np.sum((yt - np.mean(yt)) ** 2)
     if ss_tot == 0:
