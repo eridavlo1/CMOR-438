@@ -7,7 +7,8 @@ This package implements the Logistic Regression model, which is a fundamental al
 Logistic Regression models the **probability** that a given input sample belongs to a particular class (Class 1 or Class 0).
 
 1. **Net Input (Linear Model):** The process starts with a linear combination of features, similar to Linear Regression: $Z = \mathbf{X} \mathbf{W} + b$.
-2. **Sigmoid Function:** The linear output $Z$ is then passed through the **Sigmoid function** ($\sigma$), which squashes the result into the range $(0, 1)$, producing the probability estimate $\hat{p}$:
+2. **Sigmoid Function:** The linear output $Z$ is then passed through the **Sigmoid function** ($\sigma$), which squashes the result into the range $(0, 1)$, producing the probability estimate $\hat{p}$:\
+
     $\hat{p} = \sigma(Z) = \frac{1}{1 + e^{-Z}}$
 3. **Cost Function:** The weights ($\mathbf{W}$) are optimized by minimizing the **Binary Cross-Entropy Loss** (or Log Loss) using **Batch Gradient Descent (GD)**.
 
