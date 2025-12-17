@@ -16,7 +16,7 @@ The core idea of KNN is to classify or predict the values of a new data point ba
 
 ### Regression
 
-1. **Objective:**To predict a continuous target value for a new data point.
+1. **Objective:** To predict a continuous target value for a new data point.
 2. **Process:**
     * The steps are identical to classification, up to finding the *k* nearest neighbors.
     * The predicted value for the new point is the **mean** (average) of the target values of those *k* neighbors.
