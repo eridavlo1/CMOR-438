@@ -32,4 +32,4 @@ find = {where = ["src"]}
 [tool.pytest.ini_options]
 addopts = "--doctest-modules"
 doctest_optionflags = ["NORMALIZE_WHITESPACE", "ELLIPSIS"]
-testpaths = ["src/rice_ml/supervised_learning", "tests"]
+testpaths = ["src/rice_ml/", "tests"]
