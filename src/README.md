@@ -43,6 +43,11 @@ Implements all models that require labeled data for training.
 * `multilayer_perceptron.py`: Implements the MLP (Neural Network) for binary classification using backpropagation.
 * `k_nearest_neighbors.py`: Implements both `KNNClassifier` and `KNNRegressor` (Lazy Learning models).
 * `decision_trees.py`: Implements `DecisionTreeRegressor` (and implicitly, the classifier counterpart using Gini/Entropy).
+* `regression_trees.py`: Implements a specialized Decision Tree structure optimized for continuous target variable prediction (regression).
+* `ensemble_methods.py`: Contains implementations for combining multiple models to improve performance, such as Random Forests or Boosting algorithms.
+* `gradient_descent.py`: Utility functions and base classes related to the Gradient Descent optimization routine, likely shared by linear and logistic regression.
+* `_linear_helpers.py`: Internal helpers for linear models (e.g., calculation of cost/loss functions).
+* `_tree_helpers.py`: Internal helpers for tree models (e.g., Gini impurity, Entropy, Information Gain).
 
 ### 4. unsupervised_learning
 
