@@ -9,18 +9,13 @@ The Perceptron is an online, iterative, error-correcting algorithm. It updates t
 ### Core Mechanism
 
 1. **Net Input ($z$):** For a given sample $\mathbf{x}$, the model calculates the weighted sum of its features plus the bias:
-    $$
-    z = \mathbf{w} \cdot \mathbf{x} + w_0
-    $$
-2. **Activation (Step Function):** The net input $z$ determines the output $\hat{y}$. If $z \ge 0$, the output is $+1$; otherwise, it is $-1$. [Image of the Heaviside Step Function]
+    $z = \mathbf{w} \cdot \mathbf{x} + w_0$
+2. **Activation (Step Function):** The net input $z$ determines the output $\hat{y}$. If $z \ge 0$, the output is $+1$; otherwise, it is $-1$.
+
 3. **Update Rule:** If the prediction $\hat{y}$ does not match the true target $y$, the weights are updated based on the Perceptron rule:
-    $$
-    \mathbf{w}^{(t+1)} = \mathbf{w}^{(t)} + \Delta \mathbf{w}
-    $$
+    $\mathbf{w}^{(t+1)} = \mathbf{w}^{(t)} + \Delta \mathbf{w}$
     where the update term $\Delta \mathbf{w}$ is calculated as:
-    $$
-    \Delta \mathbf{w} = \eta \cdot (y - \hat{y}) \cdot \mathbf{x}
-    $$
+    $\Delta \mathbf{w} = \eta \cdot (y - \hat{y}) \cdot \mathbf{x}$
     The model continues iterating over the training data until all samples are correctly classified (convergence) or the maximum number of epochs is reached.
 
 ### Guarantee
