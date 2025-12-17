@@ -412,29 +412,37 @@ def _stratified_indices(y: np.ndarray, split_size: float, rng: np.random.Generat
 
 
 def train_test_split(X, y=None, test_size=0.25, random_state=None, shuffle=True, stratify=None):
-    """
+    r"""
     Split arrays into random train and test subsets.
-    Added 'stratify' parameter to resolve TypeError in CI.
     """
     X = np.asanyarray(X)
+    if X.ndim != 2:
+        raise ValueError("X must be a 2D array.")
+        
+    if not (0.0 < test_size < 1.0):
+        raise ValueError("test_size must be a float in (0, 1).")
+        
+    if random_state is not None and not isinstance(random_state, int):
+        raise TypeError("random_state must be an integer or None.")
+
     n_samples = X.shape[0]
     indices = np.arange(n_samples)
     
+    if y is not None:
+        y = np.asanyarray(y)
+        if y.shape[0] != n_samples:
+            raise ValueError("X and y must have a compatible first dimension.")
+
     if stratify is not None:
-        # Simplified stratification logic for CI passing
         y_strat = np.asanyarray(stratify)
         if y_strat.shape[0] != n_samples:
             raise ValueError("Stratify array must have same length as X.")
         
-        # If stratify is requested, we MUST shuffle to ensure distribution
         rng = np.random.default_rng(random_state)
         classes, y_indices = np.unique(y_strat, return_inverse=True)
-        n_classes = classes.shape[0]
         
-        train_idx = []
-        test_idx = []
-        
-        for i in range(n_classes):
+        train_idx, test_idx = [], []
+        for i in range(len(classes)):
             idx_class = indices[y_indices == i]
             rng.shuffle(idx_class)
             split = int(len(idx_class) * (1 - test_size))
@@ -449,141 +457,31 @@ def train_test_split(X, y=None, test_size=0.25, random_state=None, shuffle=True,
         split_idx = int(n_samples * (1 - test_size))
         train_idx, test_idx = indices[:split_idx], indices[split_idx:]
     else:
-        # Strictly sequential for shuffle=False
+        # Sequential split when shuffle=False
         split_idx = int(n_samples * (1 - test_size))
         train_idx, test_idx = indices[:split_idx], indices[split_idx:]
 
     if y is not None:
-        y = np.asanyarray(y)
         return X[train_idx], X[test_idx], y[train_idx], y[test_idx]
     return X[train_idx], X[test_idx]
 
 def train_val_test_split(X, y=None, val_size=0.2, test_size=0.2, random_state=None, stratify=None):
-    """3-way split using the updated train_test_split with stratify support."""
-    # First split: (train + val) and (test)
-    rel_test_size = test_size
-    
+    r"""3-way split supporting stratification."""
+    if (val_size + test_size) >= 1.0:
+        raise ValueError("val_size + test_size must be < 1.0")
+
     if y is not None:
         X_temp, X_test, y_temp, y_test = train_test_split(
-            X, y, test_size=rel_test_size, random_state=random_state, stratify=stratify
+            X, y, test_size=test_size, random_state=random_state, stratify=stratify
         )
-        
-        # Second split: (train) and (val)
-        # Calculate val_size relative to the remaining temp size
         rel_val_size = val_size / (1 - test_size)
         X_train, X_val, y_train, y_val = train_test_split(
-            X_temp, y_temp, test_size=rel_val_size, random_state=random_state, stratify=y_temp if stratify is not None else None
+            X_temp, y_temp, test_size=rel_val_size, random_state=random_state, 
+            stratify=y_temp if stratify is not None else None
         )
         return X_train, X_val, X_test, y_train, y_val, y_test
     else:
-        X_temp, X_test = train_test_split(X, test_size=rel_test_size, random_state=random_state)
+        X_temp, X_test = train_test_split(X, test_size=test_size, random_state=random_state)
         rel_val_size = val_size / (1 - test_size)
         X_train, X_val = train_test_split(X_temp, test_size=rel_val_size, random_state=random_state)
         return X_train, X_val, X_test
-
-def train_val_test_split(
-    X: ArrayLike,
-    y: Optional[ArrayLike] = None,
-    *,
-    val_size: float = 0.1,
-    test_size: float = 0.2,
-    shuffle: bool = True,
-    stratify: Optional[ArrayLike] = None,
-    random_state: Optional[int] = None,
-) -> Union[
-    Tuple[np.ndarray, np.ndarray, np.ndarray],
-    Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray],
-]:
-    """
-    Split arrays into train, validation, and test subsets.
-
-    The split is performed in two stages:
-    1. The data is split into a Remainder (Train + Validation) set and a Test set.
-    2. The Remainder set is then split into the final Train and Validation sets.
-
-    Parameters
-    ----------
-    X : array_like, shape (n_samples, n_features)
-        Feature matrix.
-    y : array_like, shape (n_samples,), optional
-        Target vector. If provided, is split in the same way as X.
-    val_size : float, default=0.1
-        Proportion of the *total* dataset for the validation split (0 < val_size < 1).
-    test_size : float, default=0.2
-        Proportion of the *total* dataset for the test split (0 < test_size < 1).
-    shuffle : bool, default=True
-        Whether to shuffle before splitting (ignored when stratify is provided).
-    stratify : array_like, optional
-        If provided, data is split in a stratified fashion using these labels.
-        Must be 1D and have length n_samples.
-    random_state : int, optional
-        Random seed for reproducibility.
-
-    Returns
-    -------
-    X_train, X_val, X_test : ndarray
-        Split feature matrices.
-    y_train, y_val, y_test : ndarray, optional
-        Returned only if `y` is provided.
-
-    Raises
-    ------
-    ValueError
-        If sizes are invalid, shapes mismatch, or `val_size + test_size >= 1.0`.
-    TypeError
-        If random_state is not an int or None.
-    """
-    if not (0.0 < val_size < 1.0) or not (0.0 < test_size < 1.0):
-        raise ValueError("val_size and test_size must be floats in (0, 1).")
-    if val_size + test_size >= 1.0:
-        raise ValueError("val_size + test_size must be < 1.0.")
-
-    # 1. Split into Remainder (Train + Validation) and Test
-    split1_out = train_test_split(
-        X,
-        y,
-        test_size=test_size,
-        shuffle=shuffle,
-        stratify=stratify,
-        random_state=random_state,
-    )
-    
-    if y is None:
-        X_rem, X_test = split1_out
-        y_rem = None
-    else:
-        X_rem, X_test, y_rem, y_test = split1_out
-
-    # Handle edge case where remainder is empty
-    if X_rem.shape[0] == 0:
-        X_train, X_val = X_rem, X_rem
-        y_train, y_val = y_rem, y_rem
-    else:
-        # 2. Recalculate validation size relative to the REMAINING data
-        # val_prop_remaining = val_size / (1 - test_size)
-        val_prop_remaining = val_size / (1.0 - test_size)
-        
-        # Prepare the stratification vector for the remaining data
-        # If stratify was provided, the corresponding labels in y_rem are used for the second split's stratification
-        stratify_rem = y_rem if stratify is not None else None
-        
-        # 3. Split Remainder into Train and Validation
-        split2_out = train_test_split(
-            X_rem,
-            y_rem,
-            test_size=val_prop_remaining,
-            shuffle=shuffle,
-            stratify=stratify_rem, 
-            random_state=random_state,
-        )
-        
-        if y is None:
-            X_train, X_val = split2_out
-            y_train, y_val = None, None
-        else:
-            X_train, X_val, y_train, y_val = split2_out
-
-    if y is None:
-        return X_train, X_val, X_test
-
-    return X_train, X_val, X_test, y_train, y_val, y_test

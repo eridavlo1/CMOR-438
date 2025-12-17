@@ -2,28 +2,18 @@ import numpy as np
 from typing import Union, Optional
 
 def _ensure_1d_numeric(arr, name):
-    r"""
-    Ensure array is 1D and numeric; forces float conversion to avoid <U1 errors.
-    """
+    r"""Forces float conversion to avoid <U1 string errors."""
     try:
-        # Forcing dtype=float ensures that numeric lists/arrays don't stay as strings
         arr = np.asarray(arr, dtype=float)
     except (TypeError, ValueError) as e:
         raise TypeError(f"{name} must contain numeric values.") from e
-    
     if arr.ndim != 1:
         raise ValueError(f"{name} must be 1-dimensional.")
     return arr
 
 # ----- Classification Metrics -----
 
-def accuracy_score(y_true, y_pred) -> float:
-    r"""Compute accuracy score."""
-    yt = np.asarray(y_true)
-    yp = np.asarray(y_pred)
-    if yt.shape != yp.shape:
-        raise ValueError("y_true and y_pred must have the same shape.")
-    return np.mean(yt == yp)
+def accuracy_score(y_true, y_pred): return np.mean(np.asarray(y_true) == np.asarray(y_pred))
 
 def precision_score(y_true, y_pred, average="binary") -> float:
     r"""Compute precision score."""
@@ -104,17 +94,15 @@ def confusion_matrix(y_true, y_pred, labels=None) -> np.ndarray:
             cm[label_to_ind[t], label_to_ind[p]] += 1
     return cm
 
-def roc_auc_score(y_true, y_score) -> float:
-    r"""Compute ROC AUC score for binary classification."""
+def roc_auc_score(y_true, y_score):
     yt = np.asarray(y_true)
     ys = _ensure_1d_numeric(y_score, "y_score")
     uniq = np.unique(yt)
     
+    if uniq.size == 1:
+        raise ValueError("y_true must contain at least one sample from each class")
     if uniq.size != 2:
         raise ValueError("ROC AUC score is only defined for binary classification.")
-    
-    if np.all(yt == uniq[0]) or np.all(yt == uniq[1]):
-        raise ValueError("y_true must contain at least one sample from each class")
         
     order = np.argsort(ys, kind="mergesort")
     ranks = np.empty_like(order, dtype=float)
@@ -122,51 +110,35 @@ def roc_auc_score(y_true, y_score) -> float:
     
     n_pos = np.sum(yt == uniq[1])
     n_neg = len(yt) - n_pos
-    
     return (np.sum(ranks[yt == uniq[1]]) - n_pos * (n_pos + 1) / 2) / (n_pos * n_neg)
 
-def log_loss(y_true, y_prob, eps=1e-15) -> float:
-    r"""Compute log loss for classification."""
+def log_loss(y_true, y_prob, eps=1e-15):
     yt = np.asarray(y_true)
     p = np.clip(y_prob, eps, 1 - eps)
-    
     if p.ndim == 1:
         return -np.mean(yt * np.log(p) + (1 - yt) * np.log(1 - p))
-    
     rows = np.arange(len(yt))
     return -np.mean(np.log(p[rows, yt.astype(int)]))
 
 # ----- Regression Metrics -----
 
-def mse(y_true, y_pred) -> float:
-    r"""Mean squared error regression loss."""
-    yt = _ensure_1d_numeric(y_true, "y_true")
-    yp = _ensure_1d_numeric(y_pred, "y_pred")
-    if yt.shape != yp.shape:
-        raise ValueError("y_true and y_pred must have the same length.")
+def mse(y_true, y_pred):
+    yt, yp = _ensure_1d_numeric(y_true, "y_true"), _ensure_1d_numeric(y_pred, "y_pred")
     return np.mean((yt - yp) ** 2)
 
-def rmse(y_true, y_pred) -> float:
-    r"""Root mean squared error regression loss."""
-    return np.sqrt(mse(y_true, y_pred))
-
-def mae(y_true, y_pred) -> float:
-    r"""Mean absolute error regression loss."""
-    yt = _ensure_1d_numeric(y_true, "y_true")
-    yp = _ensure_1d_numeric(y_pred, "y_pred")
+def mae(y_true, y_pred):
+    yt, yp = _ensure_1d_numeric(y_true, "y_true"), _ensure_1d_numeric(y_pred, "y_pred")
     return np.mean(np.abs(yt - yp))
 
-def r2_score(y_true, y_pred) -> float:
-    r"""Compute R^2 (coefficient of determination) regression score."""
+def rmse(y_true, y_pred): return np.sqrt(mse(y_true, y_pred))
+
+
+def r2_score(y_true, y_pred):
     yt = _ensure_1d_numeric(y_true, "y_true")
     yp = _ensure_1d_numeric(y_pred, "y_pred")
-    
     ss_res = np.sum((yt - yp) ** 2)
     ss_tot = np.sum((yt - np.mean(yt)) ** 2)
-    
     if ss_tot == 0:
-        if ss_res < 1e-12:
-            return 1.0
+        if ss_res < 1e-12: return 1.0
         raise ValueError("is undefined when y_true is constant")
-        
-    return 1 - (ss_res / ss_tot)
+    return 1.0 - (ss_res / ss_tot)
