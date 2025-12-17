@@ -102,10 +102,21 @@ def rmse(y_true, y_pred):
     return np.sqrt(mse(y_true, y_pred))
 
 def r2_score(y_true, y_pred):
-    yt, yp = _ensure_1d_numeric(y_true, "y_true"), _ensure_1d_numeric(y_pred, "y_pred")
+    r"""
+    Compute R^2 (coefficient of determination) regression score.
+    """
+    yt = _ensure_1d_numeric(y_true, "y_true")
+    yp = _ensure_1d_numeric(y_pred, "y_pred")
+    
+    # Residual sum of squares
     ss_res = np.sum((yt - yp) ** 2)
+    # Total sum of squares
     ss_tot = np.sum((yt - np.mean(yt)) ** 2)
+    
     if ss_tot == 0:
-        if ss_res < 1e-12: return 1.0
+        if ss_res < 1e-12: 
+            return 1.0
         raise ValueError("is undefined when y_true is constant")
+        
+    # Standard formula to ensure compatibility with test expectations
     return 1.0 - (ss_res / ss_tot)
