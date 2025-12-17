@@ -3,7 +3,7 @@ import pytest
 from typing import List
 
 # Assume correct import structure from your library
-from rice_ml.post_processing import (
+from rice_ml.processing import (
     accuracy_score,
     precision_score,
     recall_score,

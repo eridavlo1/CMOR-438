@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from rice_ml import euclidean_distance, manhattan_distance
+from rice_ml.utils.distances_metrics import euclidean_distance, manhattan_distance
 
 # --- 1. Basic Functionality and Precision ---
 

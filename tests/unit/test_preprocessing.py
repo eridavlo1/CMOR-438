@@ -3,7 +3,7 @@ import pytest
 from collections import Counter
 from typing import Tuple, List
 
-from rice_ml.pre_processing import (
+from rice_ml.processing import (
     standardize,
     minmax_scale,
     maxabs_scale,
