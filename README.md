@@ -93,7 +93,7 @@ pytest
 
 ## Installation
 
-Since this is a project-based library, it is not published to PyPI. To use it in your environment:\
+Since this is a project-based library, it is not published to PyPI. To use it in your environment:
 
 1. Clone the Repository & Install Locally (Editable Mode):
 

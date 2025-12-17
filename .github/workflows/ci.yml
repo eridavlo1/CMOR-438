@@ -1,0 +1,76 @@
+name: CI
+
+# --- Trigger Events ---
+# Defines when the workflow should run
+on:
+  pull_request:
+    # Runs on PRs targeting main
+  push:
+    branches: [ main, master ]
+    # Runs on pushes to main or master
+  workflow_dispatch:
+    # Allows manual execution from the GitHub Actions tab
+
+# --- Concurrency Control ---
+# Prevents multiple duplicate runs for the same PR/commit, canceling older runs
+# when a new commit updates the same branch.
+concurrency:
+  group: ci-${{ github.ref }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+# --- Jobs Definition ---
+jobs:
+  tests:
+    name: Test Python ${{ matrix.python-version }} on Ubuntu
+    runs-on: ubuntu-latest
+    
+    # Strategy to test against multiple Python versions
+    strategy:
+      # If one Python version fails, continue testing others
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        # Retrieves your source code
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          # Caches downloaded packages for faster runs
+          cache: "pip"
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      # --- Install Dependencies ---
+      - name: Install Project Dependencies
+        # This script checks for common dependency files and installs them.
+        run: |
+          # Install main dependencies (if present)
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # Install development/test dependencies (if present)
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          
+          # Crucial: Ensure pytest and numpy are present for testing base files
+          pip install pytest numpy
+      
+      # --- Install the rice_ml Package ---
+      # Installs the package in editable mode (-e) so it can be imported from tests
+      # without Python needing to be aware of the src/ folder structure.
+      - name: Install package (editable)
+        run: pip install -e .
+
+      # --- Run Tests ---
+      # The tests directory contains a unit subdirectory, so we just run pytest.
+      - name: Run Pytest Suite
+        # Runs all tests in the 'tests/' directory
+        run: pytest -q
+        
+      # You can uncomment and modify this step if you have docstrings 
+      # you want to explicitly test, for example:
+      #- name: Run Doctests for Supervised Learning
+      #  run: pytest --doctest-modules src/rice_ml/supervised_learning -q
