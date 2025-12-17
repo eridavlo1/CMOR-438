@@ -68,7 +68,7 @@ def _rng_from_seed(random_state: Optional[int]) -> np.random.Generator:
         raise TypeError("random_state must be an integer or None.")
     return np.random.default_rng(int(random_state))
 
-# --- Scaling / Normalization Functions --- #
+# --- Scaling / Normalization Functions ---
 def standardize(
     X: ArrayLike,
     *,
@@ -76,68 +76,88 @@ def standardize(
     with_std: bool = True,
     ddof: int = 0,
     return_params: bool = False,
+    # --- ENHANCED PARAMETERS FOR TRANSFORMATION ---
+    mean: Optional[np.ndarray] = None,
+    scale: Optional[np.ndarray] = None,
 ) -> Union[np.ndarray, Tuple[np.ndarray, dict]]:
     """
     Z-score standardization (feature-wise).
+    
+    This function can be used in two modes:
+    1. Fit and Transform (default): Calculates mean/std from X and scales X.
+    2. Transform only: Uses provided 'mean' and 'scale' arrays to transform X.
 
-    Each feature column is transformed to `(X - mean) / std` when enabled.
+    Each feature column is transformed to `(X - mean) / scale` when enabled.
     Columns with zero variance are centered (if `with_mean=True`) but not scaled, 
-    and the corresponding scaling factor returned in `params` is 1.0.
+    and the corresponding scaling factor used is 1.0.
 
     Parameters
     ----------
     X : array_like, shape (n_samples, n_features)
         Input matrix.
     with_mean : bool, default=True
-        Center features by subtracting the column mean.
+        Center features by subtracting the column mean (if fitting).
     with_std : bool, default=True
-        Scale features by dividing by the column standard deviation.
+        Scale features by dividing by the column standard deviation (if fitting).
     ddof : int, default=0
-        Delta degrees of freedom for variance/std calculation.
+        Delta degrees of freedom for variance/std calculation during fitting.
     return_params : bool, default=False
-        If True, also return a dict with keys ``mean`` and ``scale``.
+        If True, also return a dict with keys ``mean`` and ``scale`` (only applies if fitting).
+    mean : ndarray, optional
+        Pre-calculated mean to use for transformation (avoids fitting).
+    scale : ndarray, optional
+        Pre-calculated scale (standard deviation) to use for transformation (avoids fitting).
 
     Returns
     -------
     X_out : ndarray of shape (n_samples, n_features)
         Standardized array.
     params : dict, optional
-        Only if `return_params=True`. Contains:
-        - 'mean': ndarray of shape (n_features,)
-        - 'scale': ndarray of shape (n_features,) (std; 1.0 where std=0)
+        Only if `return_params=True`. Contains: 'mean' and 'scale'.
 
     Raises
     ------
     ValueError
-        If X is not 2D or is empty, or contains NaN/Inf.
-    TypeError
-        If X contains non-numeric values.
-
-    Examples
-    --------
-    >>> import numpy as np
-    >>> X = np.array([[1., 2.], [3., 2.], [5., 2.]])
-    >>> Z, params = standardize(X, return_params=True)
-    >>> Z.mean(axis=0).round(7).tolist()
-    [0.0, 0.0]
-    >>> params["scale"].round(7).tolist()
-    [1.6329932, 1.0]
+        If X is not 2D or is empty, or if mean/scale dimensions are mismatched.
     """
-    X = _ensure_2d_numeric(X, "X")
-    mean = X.mean(axis=0) if with_mean else np.zeros(X.shape[1], dtype=float)
-    Xc = X - mean if with_mean else X.copy()
+    X_arr = _ensure_2d_numeric(X, "X")
 
+    # --- MODE 1: TRANSFORM ONLY (mean and scale are provided) ---
+    if mean is not None and scale is not None:
+        # Validate that provided parameters match the number of features
+        if X_arr.shape[1] != mean.shape[0] or X_arr.shape[1] != scale.shape[0]:
+            raise ValueError("Provided 'mean' or 'scale' dimensions do not match X features.")
+
+        X_centered = X_arr - mean if with_mean else X_arr
+        
+        # Guard against zero scale if the user provided it (though scale should already be guarded)
+        # Note: If scale was calculated correctly (guarded against zero), this step is safe.
+        scale_guarded = scale.copy()
+        scale_guarded[scale_guarded == 0.0] = 1.0 
+        
+        X_out = X_centered / scale_guarded if with_std else X_centered
+        return X_out
+
+    # --- MODE 2: FIT AND TRANSFORM (mean and scale are calculated from X) ---
+    
+    # 1. Calculate Mean (for centering)
+    mean_calc = X_arr.mean(axis=0) if with_mean else np.zeros(X_arr.shape[1], dtype=float)
+    X_centered = X_arr - mean_calc
+    
+    # 2. Calculate Scale (for dividing)
     if with_std:
-        std = Xc.std(axis=0, ddof=ddof)
-        scale = std.copy()
-        scale[scale == 0.0] = 1.0
-        X_out = Xc / scale
+        std_calc = X_centered.std(axis=0, ddof=ddof)
+        scale_calc = std_calc.copy()
+        # Guard against zero variance/std: set scale factor to 1.0 where std is 0
+        scale_calc[scale_calc == 0.0] = 1.0
+        X_out = X_centered / scale_calc
     else:
-        scale = np.ones(X.shape[1], dtype=float)
-        X_out = Xc
+        scale_calc = np.ones(X_arr.shape[1], dtype=float)
+        X_out = X_centered
 
+    # 3. Return results
     if return_params:
-        return X_out, {"mean": mean, "scale": scale}
+        return X_out, {"mean": mean_calc, "scale": scale_calc}
     return X_out
 
 
