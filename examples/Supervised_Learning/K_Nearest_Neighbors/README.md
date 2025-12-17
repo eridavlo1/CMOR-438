@@ -34,7 +34,7 @@ The core idea of KNN is to classify or predict the values of a new data point ba
 
 ### Input Features ($\mathbf{X}$)
 
-* **Format:** Requires a 2D array (shape: $(N_{samples}, N_{features})$).
+* **Format:** Requires a 2D array of $(N_{samples}, N_{features})$.
 * **Type:** Features must be entirely **numeric**. KNN is highly sensitive to the scale of features, so **standardization (scaling)** of the input data is strongly recommended before training.
 
 ### Labels ($\mathbf{Y}$)
