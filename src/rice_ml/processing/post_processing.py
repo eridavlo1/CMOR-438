@@ -1,8 +1,9 @@
 import numpy as np
 
 def _ensure_1d_numeric(arr, name):
-    r"""Forces float conversion to avoid string-array errors and validates dimensions."""
+    r"""Forces float conversion to avoid <U1 string errors."""
     try:
+        # Standardize to float64 to ensure maximum precision
         arr = np.asarray(arr, dtype=float)
     except (TypeError, ValueError) as e:
         raise TypeError(f"{name} must contain numeric values.") from e
@@ -102,23 +103,16 @@ def rmse(y_true, y_pred):
     return np.sqrt(mse(y_true, y_pred))
 
 def r2_score(y_true, y_pred):
-    r"""
-    Compute R^2 (coefficient of determination) regression score.
-    """
-    # Force conversion to float64 to maintain precision
+    """Compute R^2 regression score."""
     yt = _ensure_1d_numeric(y_true, "y_true")
     yp = _ensure_1d_numeric(y_pred, "y_pred")
     
-    # Residual sum of squares (SS_res)
     ss_res = np.sum((yt - yp) ** 2)
-    # Total sum of squares (SS_tot)
     ss_tot = np.sum((yt - np.mean(yt)) ** 2)
     
     if ss_tot == 0:
         if ss_res < 1e-12: 
             return 1.0
-        # This matches the regex expected in test_regression_shape_type_errors
         raise ValueError("is undefined when y_true is constant")
         
-    # Standard formula to ensure compatibility with test expectations
     return 1.0 - (ss_res / ss_tot)
