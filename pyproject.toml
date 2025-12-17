@@ -24,8 +24,10 @@ dev = ["pytest"]
 [project.urls]
 "Homepage" = "https://github.com/eridavlo1/CMOR-438"
 
-[tool.setuptools]
-package-dir = {"" = "src"} 
+[tool.setuptools.packages]
+# Explicitly tells setuptools to scan the 'src' directory 
+# and find the 'rice_ml' package within it.
+find = {where = ["src"]}
 
 [tool.pytest.ini_options]
 addopts = "--doctest-modules"
