@@ -459,8 +459,8 @@ def roc_auc_score(y_true: ArrayLike, y_score: ArrayLike) -> float:
    # Rank-based AUC calculation (Mann-Whitney U statistic)
    # Compure AUC = (sum of ranks for positive class - n_pos*(n_pos+1)/2) / (n_pos*n_neg)
     order = np.argsort(ys, kind = "mergesort")
-    ranks = np.empty_like(order=float)
-    ranks[order] = np.arange(1, len(ys) + 1)
+    ranks = np.empty_like(order, dtype=float)
+    ranks[order] = np.arrange(1, len(ys) + 1)
    
     pos = yt == uniq.max()
     n_pos = np.sum(pos)

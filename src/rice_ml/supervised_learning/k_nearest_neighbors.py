@@ -291,27 +291,21 @@ class KNNRegressor(_KNNBase):
             
         return y_pred.astype(float, copy=False)
 
-    def score(self, X: ArrayLike, y: ArrayLike) -> float:
-        """R^2 score on (X, y)."""
-        X_train, _ = self._check_is_fitted()
-        Xq = _ensure_2d_float(X, "X")
-        y_true = np.asarray(_ensure_1d(y, "y"), dtype=float)
-
-        if Xq.shape[0] != y_true.shape[0]:
-            raise ValueError("X and y lengths do not match.")
-
-        y_pred = self.predict(Xq)
-
+    def score(self, X, y) -> float:
+        """Compute the R^2 score."""
+        y_true = np.asarray(y, dtype=float)
+        y_pred = self.predict(X)
+        
         ss_res = np.sum((y_true - y_pred) ** 2)
         y_mean = np.mean(y_true)
         ss_tot = np.sum((y_true - y_mean) ** 2)
-
+        
         if ss_tot == 0:
-            if np.array_equal(Xq, X_train) and ss_res < 1e-12:
+            # FIX: Handle constant y_true. Return 1.0 if the fit is perfect.
+            if ss_res < 1e-12:
                 return 1.0
             raise ValueError(
-                "R^2 is undefined when y_true is constant unless scoring on the "
-                "training inputs with a perfect fit."
+                "R^2 is undefined when y_true is constant unless the fit is perfect."
             )
-        
-        return float(1.0 - ss_res / ss_tot)
+            
+        return 1 - (ss_res / ss_tot)

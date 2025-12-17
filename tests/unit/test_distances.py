@@ -74,9 +74,10 @@ def test_symmetry_and_nonnegative_properties():
 
 def test_non_numeric_type_validation():
     """Tests that the functions raise TypeError for non-numeric content."""
-    # Non-numeric elements
+    # Non-numeric elements in numpy arrays
     with pytest.raises(TypeError, match="numeric"):
         euclidean_distance(np.array([1, 2]), np.array(["a", 4]))
+    
     with pytest.raises(TypeError, match="numeric"):
         manhattan_distance([1, 2], ["x", "y"])
 
@@ -84,6 +85,6 @@ def test_non_numeric_type_validation():
     with pytest.raises(TypeError, match="numeric"):
         euclidean_distance(["1", "2"], ["3", "4"])
 
-    # Test empty string (should fail astype(float))
+    # Test empty string (should fail strict numeric validation)
     with pytest.raises(TypeError, match="numeric"):
         manhattan_distance([""], [1])

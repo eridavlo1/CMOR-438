@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from collections import Counter # Added Counter import for stratification test diagnosis
+from collections import Counter
 from typing import List
 
 # Assume correct import structure from your library
@@ -71,7 +71,6 @@ def test_log_loss_multiclass_perfect_score():
     # 2D probabilities (one-hot encoding of true labels)
     probs = np.eye(3) 
     # Loss = -1/3 * [log(1) + log(1) + log(1)] = 0
-    # FIX: Corrected typo 'np.arrange' to 'np.arange' (although not used here, checking previous log trace)
     assert np.isclose(log_loss(y_true, probs), 0.0)
 
 
@@ -82,7 +81,6 @@ def test_binary_metric_errors():
         precision_score([0, 1, 2], [0, 1, 2], average="binary")
         
     # 2. ROC AUC requires samples from both classes
-    # FIX: The expected error message matches the actual behavior. Adjusting the regex to avoid mismatch.
     with pytest.raises(ValueError, match="at least one sample from each class"):
         roc_auc_score([0, 0, 0], [0.1, 0.2, 0.3])
         
@@ -108,8 +106,6 @@ def test_multiclass_macro_micro():
     
     # Macro Average = Mean of (1.0, 0.0, 0.5) = 1.5 / 3 = 0.5
     assert np.isclose(precision_score(y_true, y_pred, average="macro"), 0.5)
-    # FIX: The original test for recall/macro was failing. Re-testing calculation.
-    # Recall Macro = (1.0 + 0.0 + 0.5) / 3 = 0.5
     assert np.isclose(recall_score(y_true, y_pred, average="macro"), 0.5)
     assert np.isclose(f1_score(y_true, y_pred, average="macro"), 0.5)
 
@@ -130,15 +126,11 @@ def test_confusion_with_custom_labels_ignores_unknown():
     y_pred = np.array([0, 3, 2, 1])
     
     # Custom labels only include [0, 1, 2].
-    # The prediction '3' (from y_pred[1]) is an unknown predicted label and should be ignored/excluded.
     cm = confusion_matrix(y_true, y_pred, labels=[0, 1, 2])
     
-    # True label '1' (y_true[1]) maps to predicted '3' (y_pred[1]). This misclassification is dropped.
-    # The true-1, pred-3 cell is outside the [0,1,2] matrix bounds.
-    # The True label '2' (y_true[3]) maps to predicted '1' (y_pred[3]) -> Cell [2, 1] += 1
     # Expected CM:
     # [[1, 0, 0],
-    #  [0, 0, 0],  <- (0,1) is dropped, (0,3) is dropped
+    #  [0, 0, 0],
     #  [0, 1, 1]]
     assert cm.tolist() == [[1, 0, 0],
                            [0, 0, 0],
@@ -152,22 +144,16 @@ def test_regression_metrics():
     y_true = np.array([3.0, -0.5, 2.0, 7.0])
     y_pred = np.array([2.5, 0.0, 2.0, 8.0])
     
-    # Errors (y_true - y_pred): [0.5, -0.5, 0.0, -1.0]
-    # Errors squared: [0.25, 0.25, 0.0, 1.0]
-    # Sum of errors squared: 1.5
-    
-    # MSE = Sum of Errors^2 / N = 1.5 / 4 = 0.375
+    # MSE = 0.375
     assert mse(y_true, y_pred) == 0.375
     
-    # RMSE = sqrt(MSE) = sqrt(0.375)
+    # RMSE = sqrt(0.375)
     assert np.isclose(rmse(y_true, y_pred), np.sqrt(0.375))
     
-    # MAE = Sum of |Errors| / N = (0.5 + 0.5 + 0.0 + 1.0) / 4 = 2.0 / 4 = 0.5
+    # MAE = 0.5
     assert mae(y_true, y_pred) == 0.5
     
-    # R2_score: SS_res = 1.5. y_mean = (3 - 0.5 + 2 + 7) / 4 = 11.5 / 4 = 2.875
-    # SS_tot = sum((y_true - 2.875)^2) = 29.0
-    # R2 = 1 - (1.5 / 29.0)
+    # R2_score: SS_res = 1.5, SS_tot = 29.0
     assert np.isclose(r2_score(y_true, y_pred), 1.0 - 1.5 / 29.0)
 
 
@@ -182,10 +168,9 @@ def test_regression_shape_type_errors():
         mae(["a", "b"], [1, 2])
         
     # 3. Constant y_true edge case for R2
-    # FIX: This test ensures the metric *raises* when y_true is constant AND the prediction is imperfect.
+    # R^2 is undefined when y_true is constant unless predictions are perfect
     with pytest.raises(ValueError, match="is undefined when y_true is constant"):
-        # Since [1, 2, 3] is an imperfect prediction for y_true=[1, 1, 1], it should raise
         r2_score([1, 1, 1], [1, 2, 3])
         
-    # R^2 = 1.0 when y_true is constant and predictions are perfect (no error)
+    # R^2 = 1.0 when y_true is constant and predictions are perfect
     assert r2_score([1, 1, 1], [1, 1, 1]) == 1.0
