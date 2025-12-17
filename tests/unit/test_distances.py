@@ -4,7 +4,7 @@ from rice_ml.utils.distances_metrics import euclidean_distance, manhattan_distan
 
 # --- 1. Basic Functionality and Precision ---
 
-def test_distance_accuracy_and_precision(euclidean_distance, manhattan_distance):
+def test_distance_accuracy_and_precision():
     """Tests standard geometric cases and floating-point accuracy."""
     
     # Euclidean: 3-4-5 triangle
@@ -24,7 +24,7 @@ def test_distance_accuracy_and_precision(euclidean_distance, manhattan_distance)
 
 # --- 2. Input Validation and Edge Cases ---
 
-def test_shape_mismatch_validation(euclidean_distance, manhattan_distance):
+def test_shape_mismatch_validation():
     """Tests ValueError when input vector shapes do not match."""
     with pytest.raises(ValueError, match="same shape"):
         euclidean_distance(np.array([1, 2, 3]), np.array([1, 2]))
@@ -32,7 +32,7 @@ def test_shape_mismatch_validation(euclidean_distance, manhattan_distance):
         manhattan_distance(np.array([1, 2]), np.array([1, 2, 3]))
 
 
-def test_dimensionality_validation(euclidean_distance, manhattan_distance):
+def test_dimensionality_validation():
     """Tests ValueError for inputs that are not 1D vectors."""
     # Test 2D matrix input
     X = np.array([[1, 2], [3, 4]])
@@ -43,7 +43,7 @@ def test_dimensionality_validation(euclidean_distance, manhattan_distance):
         manhattan_distance(X, Y)
 
 
-def test_empty_array_edge_case(euclidean_distance, manhattan_distance):
+def test_empty_array_edge_case():
     """Tests the behavior with empty arrays (distance should be 0)."""
     empty_array = np.array([], dtype=float)
     assert np.allclose(euclidean_distance(empty_array, empty_array), 0.0)
@@ -52,7 +52,7 @@ def test_empty_array_edge_case(euclidean_distance, manhattan_distance):
 
 # --- 3. Metric Properties ---
 
-def test_symmetry_and_nonnegative_properties(euclidean_distance, manhattan_distance):
+def test_symmetry_and_nonnegative_properties():
     """Tests the core properties of distance metrics (symmetry, non-negativity, identity)."""
     a = np.array([1.5, -2.5, 3.0])
     b = np.array([4.0, 5.0, -6.0])
@@ -72,7 +72,7 @@ def test_symmetry_and_nonnegative_properties(euclidean_distance, manhattan_dista
 
 # --- 4. Input Data Types ---
 
-def test_non_numeric_type_validation(euclidean_distance, manhattan_distance):
+def test_non_numeric_type_validation():
     """Tests that the functions raise TypeError for non-numeric content."""
     # Non-numeric elements
     with pytest.raises(TypeError, match="numeric"):
