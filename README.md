@@ -93,17 +93,13 @@ pytest
 
 ## Installation
 
-Since this is a project-based library, it is not published to PyPI. To use it in your environment:
-    1. Clone the Repository:
+Since this is a project-based library, it is not published to PyPI. To use it in your environment:\
+
+1. Clone the Repository & Install Locally (Editable Mode):
 
 ```bash
 git clone [https://github.com/eridavlo1/rice_ml.git](https://github.com/eridavlo1/CMOR-438.git)
 cd rice_ml
-```
-
-    2. Install Locally (Editable Mode):
-
-``` bash
 pip install -e .
 ```
 
@@ -111,5 +107,5 @@ This command installs the package in "editable" mode, allowing you to import `ri
 
 ### Author and License
 
-**Author:** Erika Vasquez (CMOR 438, Fall 2025)
+**Author:** Erika Vasquez (CMOR 438, Fall 2025)\
 **License:** This project is licensed under the MIT License. See the LICENSE file for details.
