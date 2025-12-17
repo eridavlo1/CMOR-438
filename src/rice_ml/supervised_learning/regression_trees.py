@@ -5,7 +5,7 @@ from ._tree_helpers import variance, information_gain
 
 # --- Internal Node Class ---
 class Node:
-    """A node in the regression tree."""
+    r"""A node in the regression tree."""
     def __init__(self, feature_idx=None, threshold=None, left=None, right=None, *, value=None):
         self.feature_idx = feature_idx
         self.threshold = threshold
@@ -19,7 +19,7 @@ class Node:
 # --- Decision Tree Regressor ---
 
 class DecisionTreeRegressor:
-    """
+    r"""
     A Decision Tree Regressor using the CART algorithm with Variance Reduction 
     (based on Mean Squared Error) as the splitting criterion. 
     
@@ -48,13 +48,13 @@ class DecisionTreeRegressor:
             raise ValueError(f"Unknown criterion: {criterion}")
         
     def _get_leaf_value(self, y: np.ndarray) -> float:
-        """Determines the prediction value for a leaf node (the mean of the target values)."""
+        r"""Determines the prediction value for a leaf node (the mean of the target values)."""
         return float(np.mean(y))
 
     # --- Core Tree Building Logic ---
 
     def _find_best_split(self, X: np.ndarray, y: np.ndarray) -> Tuple[Optional[int], Optional[float], float]:
-        """
+        r"""
         Finds the split that maximizes variance reduction.
         """
         n_samples, n_features = X.shape
@@ -130,7 +130,7 @@ class DecisionTreeRegressor:
         return best_feature_idx, best_threshold, best_reduction
     
     def _build_tree(self, X: np.ndarray, y: np.ndarray, depth: int) -> Node:
-        """
+        r"""
         Recursively builds the regression tree.
         """
         n_samples, _ = X.shape
@@ -162,7 +162,7 @@ class DecisionTreeRegressor:
     # --- Public API ---
 
     def fit(self, X: ArrayLike, y: ArrayLike):
-        """
+        r"""
         Builds the Regression Tree from the training data.
         """
         X_arr = ensure_2d_numeric(X, name="X")
@@ -178,7 +178,7 @@ class DecisionTreeRegressor:
         return self
 
     def _traverse_tree(self, x: np.ndarray, node: Optional[Node]) -> float:
-        """
+        r"""
         Traverses the fitted tree to find the prediction for a single data point x.
         """
         if node is None:
@@ -193,7 +193,7 @@ class DecisionTreeRegressor:
             return self._traverse_tree(x, node.right)
 
     def predict(self, X: ArrayLike) -> np.ndarray:
-        """
+        r"""
         Predicts continuous target values for the input data.
         """
         if self.tree_ is None:
@@ -205,7 +205,7 @@ class DecisionTreeRegressor:
         return predictions
     
     def score(self, X: ArrayLike, y: ArrayLike) -> float:
-        """
+        r"""
         Returns the R^2 score of the prediction.
         """
         from rice_ml.post_processing import r2_score

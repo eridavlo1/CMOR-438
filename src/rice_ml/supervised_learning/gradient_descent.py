@@ -6,7 +6,7 @@ import warnings
 from ..utils import ArrayLike, ensure_2d_numeric, ensure_1d_vector 
 
 class GradientDescent:
-    """
+    r"""
     This class implements the core logic for Batch Gradient Descent (BGD) 
     optimization. It is designed to be model-agnostic, relying on external 
     cost and gradient functions defined within specific supervised learning 
@@ -15,7 +15,7 @@ class GradientDescent:
     """
     
     def __init__(self, eta: float = 0.01, epochs: int = 1000, tol: Optional[float] = None, random_state: Optional[int] = None):
-        """
+        r"""
         Parameters
         ----------
         eta : float, default=0.01
@@ -45,7 +45,7 @@ class GradientDescent:
         cost_func: Callable[[np.ndarray, np.ndarray, np.ndarray, float], float],
         gradient_func: Callable[[np.ndarray, np.ndarray, np.ndarray, float], Tuple[np.ndarray, float]],
     ) -> Tuple[np.ndarray, float, List[float]]:
-        """
+        r"""
         Performs the optimization loop.
 
         Parameters

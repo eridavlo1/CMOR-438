@@ -16,7 +16,7 @@ from rice_ml.processing import (
 # ----- Scaling & Normalization Tests -----
 
 def test_standardize_basic_and_params():
-    """Tests z-score calculation, near-zero mean, and zero-variance handling."""
+    r"""Tests z-score calculation, near-zero mean, and zero-variance handling."""
     X = np.array([[1., 2.], [3., 2.], [5., 2.]])
     Z, params = standardize(X, return_params=True)
     
@@ -32,7 +32,7 @@ def test_standardize_basic_and_params():
 
 
 def test_standardize_no_std_or_mean():
-    """Tests the with_mean=False and with_std=False parameters."""
+    r"""Tests the with_mean=False and with_std=False parameters."""
     X = np.array([[1., 2.], [3., 4.]])
     
     # 1. No changes applied
@@ -46,7 +46,7 @@ def test_standardize_no_std_or_mean():
 
 
 def test_minmax_scale_range_and_params():
-    """Tests scaling to a non-default range and zero-range feature handling."""
+    r"""Tests scaling to a non-default range and zero-range feature handling."""
     X = np.array([[0., 10.], [5., 10.], [10., 10.]])
     X2, params = minmax_scale(X, feature_range=(2, 3), return_params=True)
     
@@ -62,7 +62,7 @@ def test_minmax_scale_range_and_params():
 
 
 def test_maxabs_scale_basic():
-    """Tests scaling by max absolute value."""
+    r"""Tests scaling by max absolute value."""
     X = np.array([[-2., 0.], [1., 0.], [2., 0.]])
     X2, params = maxabs_scale(X, return_params=True)
     
@@ -75,7 +75,7 @@ def test_maxabs_scale_basic():
 
 
 def test_l2_normalize_rows_behavior():
-    """Tests L2 normalization (Euclidean norm) and edge cases."""
+    r"""Tests L2 normalization (Euclidean norm) and edge cases."""
     X = np.array([[3., 4.], [0., 0.]])
     Xn = l2_normalize_rows(X)
     
@@ -91,7 +91,7 @@ def test_l2_normalize_rows_behavior():
 
 
 def test_scalers_input_validation():
-    """Tests shared validation logic (2D, numeric, range checking)."""
+    r"""Tests shared validation logic (2D, numeric, range checking)."""
     
     # Not 2D input
     with pytest.raises(ValueError, match="2D array"):
@@ -117,7 +117,7 @@ def test_scalers_input_validation():
 # ---- Splitting Tests ----
 
 def test_train_test_split_shapes_and_determinism():
-    """Tests shapes and ensures random_state leads to deterministic results."""
+    r"""Tests shapes and ensures random_state leads to deterministic results."""
     X = np.arange(100).reshape(50, 2)
     y = np.arange(50)
     
@@ -141,7 +141,7 @@ def test_train_test_split_shapes_and_determinism():
 
 
 def test_train_test_split_stratify():
-    """Tests that class proportions are maintained in the split."""
+    r"""Tests that class proportions are maintained in the split."""
     X = np.arange(60).reshape(30, 2)
     y = np.array([0, 1, 2] * 10) # 10 samples per class
     
@@ -162,7 +162,7 @@ def test_train_test_split_stratify():
 
 
 def test_train_val_test_split_shapes_and_stratify():
-    """Tests 3-way split shapes and stratification."""
+    r"""Tests 3-way split shapes and stratification."""
     X = np.arange(90).reshape(45, 2)
     y = np.array([0, 1, 2] * 15) # 15 samples per class
     
@@ -185,7 +185,7 @@ def test_train_val_test_split_shapes_and_stratify():
 
 
 def test_split_input_validation():
-    """Tests validation for sizes and shapes."""
+    r"""Tests validation for sizes and shapes."""
     X = np.arange(20).reshape(10, 2)
     y = np.arange(10)
     
@@ -211,7 +211,7 @@ def test_split_input_validation():
 
 
 def test_train_val_test_split_without_y():
-    """Tests 3-way split when only X is provided."""
+    r"""Tests 3-way split when only X is provided."""
     X = np.arange(30).reshape(15, 2)
     
     # Returns (X_train, X_val, X_test)

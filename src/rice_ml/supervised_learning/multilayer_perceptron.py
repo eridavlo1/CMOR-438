@@ -6,7 +6,7 @@ from ._linear_helpers import sigmoid, relu, relu_derivative
 from .gradient_descent import GradientDescent
 
 class MLPBinaryClassifier:
-    """
+    r"""
     Multilayer Perceptron (MLP) for Binary Classification using Batch Gradient Descent.
 
     Architecture: Input -> (Hidden Layers with ReLU) -> Output (Sigmoid)
@@ -32,20 +32,20 @@ class MLPBinaryClassifier:
     # --- Activation Functions and Derivatives (No changes) ---
 
     def _relu(self, Z: np.ndarray) -> np.ndarray:
-        """Rectified Linear Unit (ReLU) activation: max(0, Z)."""
+        r"""Rectified Linear Unit (ReLU) activation: max(0, Z)."""
         return np.maximum(0, Z)
 
     def _relu_derivative(self, A: np.ndarray) -> np.ndarray:
-        """Derivative of ReLU: 1 if A > 0, else 0."""
+        r"""Derivative of ReLU: 1 if A > 0, else 0."""
         return (A > 0).astype(float)
 
     def _sigmoid(self, Z: np.ndarray) -> np.ndarray:
-        """Sigmoid activation: 1 / (1 + exp(-Z))."""
+        r"""Sigmoid activation: 1 / (1 + exp(-Z))."""
         Z_clipped = np.clip(Z, -500, 500)
         return 1.0 / (1.0 + np.exp(-Z_clipped))
 
     def _add_bias_unit(self, X: np.ndarray, how: str = 'col') -> np.ndarray:
-        """Adds a bias unit (a column of 1s) to the input matrix X."""
+        r"""Adds a bias unit (a column of 1s) to the input matrix X."""
         if how == 'col':
             return np.hstack((X, np.ones((X.shape[0], 1))))
         elif how == 'row':
@@ -53,7 +53,7 @@ class MLPBinaryClassifier:
         raise ValueError("Bias unit addition must be 'col' or 'row'.")
 
     def _initialize_weights(self, n_features: int, n_output: int):
-        """Initializes weights using a scaled random distribution (He/Xavier-like)."""
+        r"""Initializes weights using a scaled random distribution (He/Xavier-like)."""
         
         rng = np.random.default_rng(self.random_state)
         layer_sizes = [n_features] + list(self.hidden_layer_sizes) + [n_output]
@@ -72,7 +72,7 @@ class MLPBinaryClassifier:
     # --- Forward Propagation (No changes) ---
 
     def _forward_propagate(self, X: np.ndarray) -> Tuple[List[np.ndarray], List[np.ndarray]]:
-        """
+        r"""
         Performs the forward pass through the network.
         """
         A = [X]
@@ -99,7 +99,7 @@ class MLPBinaryClassifier:
     # --- Cost Function (No changes) ---
     
     def _cost(self, A_out: np.ndarray, y: np.ndarray, eps: float = 1e-15) -> float:
-        """Calculates the Binary Cross-Entropy Loss (Log Loss)."""
+        r"""Calculates the Binary Cross-Entropy Loss (Log Loss)."""
         n_samples = y.shape[0]
         y_pred = np.clip(A_out, eps, 1 - eps) 
         
@@ -109,7 +109,7 @@ class MLPBinaryClassifier:
     # --- Backpropagation (No changes) ---
     
     def _backpropagate(self, A: List[np.ndarray], Z: List[np.ndarray], y: np.ndarray) -> List[np.ndarray]:
-        """
+        r"""
         Performs the backward pass to calculate gradients for all weights.
         """
         n_samples = y.shape[0]
@@ -135,7 +135,7 @@ class MLPBinaryClassifier:
     # --- Public API Methods ---
 
     def fit(self, X: ArrayLike, y: ArrayLike) -> "MLPBinaryClassifier":
-        """
+        r"""
         Trains the MLP using batch gradient descent and backpropagation.
         """
         # --- UPDATE 1: Use imported validation function ---
@@ -169,7 +169,7 @@ class MLPBinaryClassifier:
         return self
 
     def predict_proba(self, X: ArrayLike) -> np.ndarray:
-        """
+        r"""
         Predicts the probability of belonging to class 1.
         """
         # --- UPDATE 2: Use imported validation function ---
@@ -180,7 +180,7 @@ class MLPBinaryClassifier:
         return A[-1].flatten()
 
     def predict(self, X: ArrayLike) -> np.ndarray:
-        """
+        r"""
         Predicts the class label (0 or 1).
         """
         probabilities = self.predict_proba(X)

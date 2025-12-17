@@ -1,4 +1,4 @@
-"""
+r"""
 Post-training evaluation metrics for classification and regression tasks.
 
 This module provides common metrics with robust validation and NumPy-based docstrings suitable for doctest and pytest. Functions are designed to be scikit-learn-like but rely only on NumPy.
@@ -53,15 +53,11 @@ def _ensure_1d(y: ArrayLike, name: str) -> np.ndarray:
         raise ValueError(f"{name} must not be empty.")
     return arr
 
-def _ensure_1d_numeric(y: NumArrayLike, name: str) -> np.ndarray:
-    arr = _ensure_1d(y, name)
-    if not np.issubdtype(arr.dtype, np.number):
-        try:
-            arr = arr.astype(float, copy=False)
-        except (TypeError, ValueError) as e:
-            raise ValueError(f"{name} must contain numeric values; got {arr.dtype} instead.") from e
-    else:
-        arr = arr.astype(float, copy=False)
+def _ensure_1d_numeric(arr, name):
+    # Force conversion to float to prevent <U1 string types
+    arr = np.asarray(arr, dtype=float) 
+    if arr.ndim != 1:
+        raise ValueError(f"{name} must be 1-dimensional.")
     return arr
 
 def _validate_pair(y_true: ArrayLike, y_pred: ArrayLike) -> Tuple[np.ndarray, np.ndarray]:
@@ -72,7 +68,7 @@ def _validate_pair(y_true: ArrayLike, y_pred: ArrayLike) -> Tuple[np.ndarray, np
     return yt, yp
 
 def _validate_probs(y_true: ArrayLike, y_prob: ArrayLike) -> Tuple[np.ndarray, np.ndarray, int]:
-    """
+    r"""
     Validate probabilities for log_loss/roc_auc.
     
     Supports:
@@ -138,7 +134,7 @@ def _get_classification_stats(
 # ------ Classification Metrics ------
 
 def  accuracy_score(y_true: ArrayLike, y_pred: ArrayLike) -> float:
-    """
+    r"""
     Classification accuracy score.
     """
     yt, yp = _validate_pair(y_true, y_pred)
@@ -152,7 +148,7 @@ def _per_class_metric(
     y_pred: ArrayLike,
     labels: Optional[Sequence] = None
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """
+    r"""
     Compute per-class TP, FP, TN, FN, support.
     """
     yt, yp = _validate_pair(y_true, y_pred)
@@ -179,7 +175,7 @@ def precision_score(
     average: Optional[str] = "binary",
     labels: Optional[Sequence] = None
 ) -> Union[float, np.ndarray]:
-    """
+    r"""
     Precision score for classification.
     
     Parameters
@@ -224,7 +220,7 @@ def recall_score(
     average: Optional[str] = "binary",
     labels: Optional[Sequence] = None
 ) -> Union[float, np.ndarray]:
-    """
+    r"""
     Recall score for classification.
     Parameters
     ----------
@@ -265,7 +261,7 @@ def f1_score(
     average: Optional[str] = "binary",
     labels: Optional[Sequence] = None
 ) -> Union[float, np.ndarray]:
-    """
+    r"""
     F1 score (harmonic mean of precision and recall) for classification.
     Parameters
     ----------
@@ -300,7 +296,7 @@ def confusion_matrix(
     *,
     labels: Optional[Sequence] = None
 ) -> np.ndarray:
-    """
+    r"""
     Confusion matrix for classification.
 
     Parameters
@@ -362,7 +358,7 @@ def classification_report(
     output_dict: bool = False,
     digits: int = 4
 ) -> Union[str, Dict[Any, Dict[str, float]]]:
-    """
+    r"""
     Build a text report showing the main classification metrics.
     
     Parameters
@@ -434,7 +430,7 @@ def classification_report(
     return "\n".join(lines)
 
 def roc_auc_score(y_true: ArrayLike, y_score: ArrayLike) -> float:
-    """
+    r"""
     Compute ROC AUC score for binary classification.
     
     Parameters
@@ -460,7 +456,7 @@ def roc_auc_score(y_true: ArrayLike, y_score: ArrayLike) -> float:
    # Compure AUC = (sum of ranks for positive class - n_pos*(n_pos+1)/2) / (n_pos*n_neg)
     order = np.argsort(ys, kind = "mergesort")
     ranks = np.empty_like(order, dtype=float)
-    ranks[order] = np.arrange(1, len(ys) + 1)
+    ranks[order] = np.arange(1, len(ys) + 1)
    
     pos = yt == uniq.max()
     n_pos = np.sum(pos)
@@ -470,7 +466,7 @@ def roc_auc_score(y_true: ArrayLike, y_score: ArrayLike) -> float:
     return float(auc)
 
 def log_loss(y_true: ArrayLike, y_prob: ArrayLike, *, eps: float = 1e-15) -> float:
-    """
+    r"""
     Logarithmic loss for classification.
     """
     yt, probs, K = _validate_probs(y_true, y_prob)
@@ -482,7 +478,7 @@ def log_loss(y_true: ArrayLike, y_prob: ArrayLike, *, eps: float = 1e-15) -> flo
         labels_to_col = {labels.min(): 0, labels.max(): 1}
     else:
         if labels.size != K:
-            labels = np.arrange(K)
+            labels = np.arange(K)
         labels_to_col = {lab: i for i, lab in enumerate(labels)}
     # If probs is 2D, require rows to sum to 1 (within tolerance)    
     if probs.ndim == 2:
@@ -495,12 +491,12 @@ def log_loss(y_true: ArrayLike, y_prob: ArrayLike, *, eps: float = 1e-15) -> flo
     cols = np.array([labels_to_col.get(lab, None) for lab in yt])
     if np.any(cols == None):
         raise ValueError("Could not map some true labels to probability columns.")
-    ll = -np.log(p[np.arrange(len(yt)), cols.astype(int)])
+    ll = -np.log(p[np.arange(len(yt)), cols.astype(int)])
     return float(np.mean(ll))
 
 # ------ Regression Metrics ------
 def mse(y_true: NumArrayLike, y_pred: NumArrayLike) -> float:
-    """
+    r"""
     Mean squared error.
     """
     yt = _ensure_1d_numeric(y_true, "y_true")
@@ -511,14 +507,14 @@ def mse(y_true: NumArrayLike, y_pred: NumArrayLike) -> float:
 
 
 def rmse(y_true: NumArrayLike, y_pred: NumArrayLike) -> float:
-    """
+    r"""
     Root mean squared error.
     """
     return float(np.sqrt(mse(y_true, y_pred)))
 
 
 def mae(y_true: NumArrayLike, y_pred: NumArrayLike) -> float:
-    """
+    r"""
     Mean absolute error.
     """
     yt = _ensure_1d_numeric(y_true, "y_true")
@@ -529,7 +525,7 @@ def mae(y_true: NumArrayLike, y_pred: NumArrayLike) -> float:
 
 
 def r2_score(y_true: NumArrayLike, y_pred: NumArrayLike) -> float:
-    """
+    r"""
     Coefficient of determination R^2.
     
     R^2 = 1 - SS_res / SS_tot, where SS_tot uses y_true mean.

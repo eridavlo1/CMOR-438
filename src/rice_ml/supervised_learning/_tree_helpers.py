@@ -5,7 +5,7 @@ from ..processing.post_processing import mse
 # --- Impurity/Variance Functions ---
 
 def gini_impurity(y: np.ndarray) -> float:
-    """
+    r"""
     Computes the Gini Impurity of a target vector for classification.
 
     $$Gini(y) = 1 - \sum_{k=1}^{K} p_k^2$$
@@ -33,7 +33,7 @@ def gini_impurity(y: np.ndarray) -> float:
 
 
 def entropy(y: np.ndarray) -> float:
-    """
+    r"""
     Computes the Entropy (Information Content) of a target vector for classification.
 
     $$Entropy(y) = - \sum_{k=1}^{K} p_k \log_2(p_k)$$
@@ -63,7 +63,7 @@ def entropy(y: np.ndarray) -> float:
 
 
 def variance(y: np.ndarray) -> float:
-    """
+    r"""
     Computes the variance of a target vector for regression.
 
     This measures the impurity (or error) of a node for regression trees.
@@ -90,7 +90,7 @@ def variance(y: np.ndarray) -> float:
 
 def information_gain(y_parent: np.ndarray, y_left: np.ndarray, y_right: np.ndarray, 
                      metric: str = 'gini') -> float:
-    """
+    r"""
     Calculates the Information Gain (or Variance Reduction) from a split.
     
 

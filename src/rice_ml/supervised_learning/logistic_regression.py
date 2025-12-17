@@ -5,7 +5,7 @@ from rice_ml.utils import ArrayLike, ensure_2d_numeric, ensure_1d_vector, check_
 from ._linear_helpers import sigmoid, add_bias_unit 
 
 class LogisticRegression:
-    """
+    r"""
     Logistic Regression Classifier using Batch Gradient Descent.
 
     Performs binary classification by estimating probabilities using the 
@@ -37,7 +37,7 @@ class LogisticRegression:
     # NOTE: sigmoid is now imported from _linear_helpers
 
     def _net_input(self, X: np.ndarray) -> np.ndarray:
-        """
+        r"""
         Calculates the net input (Z = X * W + b).
         Uses the shared helper `add_bias_unit`.
         """
@@ -46,7 +46,7 @@ class LogisticRegression:
         return X_biased @ self.weights_
 
     def _cost(self, y: np.ndarray, y_pred_proba: np.ndarray, eps: float = 1e-15) -> float:
-        """Calculates the Binary Cross-Entropy Loss (Log Loss)."""
+        r"""Calculates the Binary Cross-Entropy Loss (Log Loss)."""
         n_samples = y.shape[0]
         # Clip probabilities to prevent log(0)
         y_pred_proba = np.clip(y_pred_proba, eps, 1 - eps) 
@@ -56,7 +56,7 @@ class LogisticRegression:
         return float(loss / n_samples)
 
     def fit(self, X: ArrayLike, y: ArrayLike) -> "LogisticRegression":
-        """
+        r"""
         Trains the model using batch gradient descent.
         """
         X_arr = ensure_2d_numeric(X, name="X")
@@ -99,7 +99,7 @@ class LogisticRegression:
         return self
 
     def predict_proba(self, X: ArrayLike) -> np.ndarray:
-        """
+        r"""
         Predicts class membership probabilities (P(y=1|X)).
         """
         X_arr = ensure_2d_numeric(X)
@@ -110,7 +110,7 @@ class LogisticRegression:
         return sigmoid(self._net_input(X_arr))
 
     def predict(self, X: ArrayLike, threshold: float = 0.5) -> np.ndarray:
-        """
+        r"""
         Predicts class labels (0 or 1).
         """
         probabilities = self.predict_proba(X)

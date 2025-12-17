@@ -4,7 +4,7 @@ import warnings
 from ..utils import ArrayLike, ensure_2d_numeric 
 
 class PCA:
-    """
+    r"""
     Principal Component Analysis (PCA) for Dimensionality Reduction.
 
     PCA is an unsupervised linear transformation technique that identifies the 
@@ -47,7 +47,7 @@ class PCA:
     # --- Core PCA Steps ---
 
     def _select_components(self, explained_variance_ratio: np.ndarray, n_features: int) -> int:
-        """Determines the final number of components based on n_components parameter."""
+        r"""Determines the final number of components based on n_components parameter."""
         
         if self.n_components is None:
             # If None, keep min(n_samples, n_features) - here we use n_features as an upper bound
@@ -77,7 +77,7 @@ class PCA:
     # --- Public API ---
 
     def fit(self, X: ArrayLike) -> "PCA":
-        """
+        r"""
         Computes the principal components from the input data.
         
         1. Centers the data.
@@ -124,7 +124,7 @@ class PCA:
         return self
 
     def transform(self, X: ArrayLike) -> np.ndarray:
-        """
+        r"""
         Applies dimensionality reduction to X by projecting it onto the 
         principal components.
         
@@ -146,13 +146,13 @@ class PCA:
         return X_transformed
 
     def fit_transform(self, X: ArrayLike) -> np.ndarray:
-        """
+        r"""
         Fits the model with X and immediately applies the dimensionality reduction.
         """
         return self.fit(X).transform(X)
 
     def inverse_transform(self, Z: ArrayLike) -> np.ndarray:
-        """
+        r"""
         Transforms the reduced data Z back to the original feature space.
         
         X_reconstructed = Z @ components_ + mean_

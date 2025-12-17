@@ -8,7 +8,7 @@ from rice_ml.supervised_learning._tree_helpers import gini_impurity, entropy, in
 # --- Internal Node Class ---
 
 class Node:
-    """
+    r"""
     A node in a decision tree, representing either a split or a leaf.
     """
     def __init__(self, feature=None, threshold=None, left=None, right=None, value=None):
@@ -25,7 +25,7 @@ class Node:
 # --- Decision Tree Classifier ---
 
 class DecisionTreeClassifier:
-    """
+    r"""
     A simple Decision Tree Classifier using the CART (Classification and Regression Tree) 
     algorithm with Gini Impurity or Entropy as the splitting criterion. 
     
@@ -68,7 +68,7 @@ class DecisionTreeClassifier:
         return counts[0][np.argmax(counts[1])]
 
     def _find_best_split(self, X: np.ndarray, y: np.ndarray) -> Tuple[Optional[int], Optional[float], float]:
-        """
+        r"""
         Finds the split that maximizes information gain using the criterion.
         """
         n_samples, n_features = X.shape
@@ -117,7 +117,7 @@ class DecisionTreeClassifier:
         return best_feature_idx, best_threshold, best_gain
     
     def _build_tree(self, X: np.ndarray, y: np.ndarray, depth: int) -> Node:
-        """
+        r"""
         Recursively builds the decision tree (CART algorithm).
         """
         # Base Cases
@@ -143,7 +143,7 @@ class DecisionTreeClassifier:
         return Node(feature=feat_idx, threshold=threshold, left=left_child, right=right_child)
     
     def _traverse_tree_and_predict(self, x: np.ndarray, node: Node) -> Any:
-        """
+        r"""
         Recursively traverses the trained decision tree for a single sample 'x'.
         """
         if node.is_leaf():
@@ -159,7 +159,7 @@ class DecisionTreeClassifier:
     # --- Public API ---
 
     def fit(self, X: ArrayLike, y: ArrayLike) -> "DecisionTreeClassifier":
-        """
+        r"""
         Builds the Decision Tree from the training data.
         """
         X_arr = ensure_2d_numeric(X, name="X")
@@ -171,7 +171,7 @@ class DecisionTreeClassifier:
         self
         
     def predict(self, X: ArrayLike) -> np.ndarray:
-        """
+        r"""
         Predict class labels for samples in X.
 
         Parameters

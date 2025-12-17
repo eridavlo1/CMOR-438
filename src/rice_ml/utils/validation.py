@@ -8,7 +8,7 @@ ArrayLike = Union[np.ndarray, Sequence[Any]]
 # --- Internal Safety Checks ---
 
 def _check_for_nan_inf(arr: np.ndarray, name: str) -> None:
-    """Check for NaN and Inf values and raise ValueError."""
+    r"""Check for NaN and Inf values and raise ValueError."""
     if np.isnan(arr).any():
         raise ValueError(f"Input array {name} contains NaN values. Please handle missing data.")
     if np.isinf(arr).any():
@@ -18,7 +18,7 @@ def _check_for_nan_inf(arr: np.ndarray, name: str) -> None:
 # --- Primary Validation Functions ---
 
 def ensure_2d_numeric(X: ArrayLike, name: str = "X") -> np.ndarray:
-    """
+    r"""
     Ensure X is a 2D numeric NumPy array (n_samples, n_features).
     
     This function performs necessary type conversion, checks dimensionality, 
@@ -71,7 +71,7 @@ def ensure_2d_numeric(X: ArrayLike, name: str = "X") -> np.ndarray:
 
 
 def ensure_1d_vector(y: ArrayLike, name: str = "y") -> np.ndarray:
-    """
+    r"""
     Ensure y is a 1D vector (numeric or categorical).
     
     This function is primarily used for target vectors (y) or stratification vectors. 
@@ -108,7 +108,7 @@ def ensure_1d_vector(y: ArrayLike, name: str = "y") -> np.ndarray:
 
 
 def check_Xy_shapes(X: np.ndarray, y: np.ndarray) -> None:
-    """
+    r"""
     Check that X and y have compatible leading dimensions (n_samples).
     """
     if X.shape[0] != len(y):

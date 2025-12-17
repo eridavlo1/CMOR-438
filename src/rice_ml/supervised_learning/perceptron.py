@@ -1,7 +1,7 @@
 import numpy as np
 
 class Perceptron:
-    """
+    r"""
     Perceptron classifier implemented from scratch using NumPy.
     
     This model is designed for binary classification problems and uses the 
@@ -37,7 +37,7 @@ class Perceptron:
         self.errors_ = []
 
     def fit(self, X, y):
-        """
+        r"""
         Trains the Perceptron model on the given training data.
         
         Parameters
@@ -104,7 +104,7 @@ class Perceptron:
         return self
 
     def _net_input(self, X):
-        """
+        r"""
         Calculates the net input, z = w * x + w_0.
         
         Parameters
@@ -122,7 +122,7 @@ class Perceptron:
         return np.dot(X, self.w_[:-1]) + self.w_[-1]
 
     def _predict_single(self, xi):
-        """
+        r"""
         Predicts the class label for a single input vector.
         """
         # Step function activation: if net_input >= 0, classify as 1, else -1
@@ -130,7 +130,7 @@ class Perceptron:
         return np.where(self._net_input(xi) >= 0.0, 1, -1)
 
     def predict(self, X):
-        """
+        r"""
         Predicts the class labels for the input data.
         
         Parameters

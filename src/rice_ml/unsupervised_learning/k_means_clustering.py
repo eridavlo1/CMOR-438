@@ -5,7 +5,7 @@ from ..utils.validation import ArrayLike, ensure_2d_numeric
 from ..utils.distances_metrics import euclidean_distance
 
 class KMeans:
-    """
+    r"""
     K-Means Clustering Algorithm.
 
     K-Means is an unsupervised, iterative, centroid-based clustering algorithm 
@@ -54,7 +54,7 @@ class KMeans:
     # --- Initialization Methods ---
     
     def _initialize_centroids(self, X: np.ndarray) -> np.ndarray:
-        """Initializes cluster centroids based on the specified method."""
+        r"""Initializes cluster centroids based on the specified method."""
         n_samples, n_features = X.shape
         
         if self.init == 'random':
@@ -99,7 +99,7 @@ class KMeans:
     # --- Core K-Means Step ---
 
     def _assign_clusters(self, X: np.ndarray, centers: np.ndarray) -> Tuple[np.ndarray, float]:
-        """Assigns each sample to the nearest centroid and calculates inertia."""
+        r"""Assigns each sample to the nearest centroid and calculates inertia."""
         n_samples = X.shape[0]
         labels = np.zeros(n_samples, dtype=int)
         inertia = 0.0
@@ -118,7 +118,7 @@ class KMeans:
         return labels, inertia
     
     def _update_centroids(self, X: np.ndarray, labels: np.ndarray) -> np.ndarray:
-        """Recalculates centroids as the mean of all samples assigned to the cluster."""
+        r"""Recalculates centroids as the mean of all samples assigned to the cluster."""
         n_features = X.shape[1]
         new_centers = np.zeros((self.n_clusters, n_features))
         
@@ -142,7 +142,7 @@ class KMeans:
     # --- Public API ---
 
     def fit(self, X: ArrayLike) -> "KMeans":
-        """
+        r"""
         Computes the K-Means clustering on the input data.
         """
         X_arr = ensure_2d_numeric(X)
@@ -182,7 +182,7 @@ class KMeans:
         return self
 
     def predict(self, X: ArrayLike) -> np.ndarray:
-        """
+        r"""
         Assigns new data points to the closest cluster center found during fitting.
         
         Returns

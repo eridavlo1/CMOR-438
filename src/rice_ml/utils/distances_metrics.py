@@ -1,168 +1,61 @@
-"""
-Distance metrics module.
-
-This module provides common distance functions for numerical vectors,
-implemented using NumPy for efficient computation and robust error handling.
-"""
-
-from __future__ import annotations
-from typing import Tuple, Any, Sequence, Union
 import numpy as np
 
-# Define types for clarity in the function signatures
-ArrayLike = Union[Sequence[Union[int, float]], np.ndarray]
-
-__all__ = ["euclidean_distance", "manhattan_distance"]
-
-
-def _to_1d_float_array(x: ArrayLike, name: str) -> np.ndarray:
-    """
-    Convert input to a 1D float NumPy array with clear, consistent errors.
-
-    Parameters
-    ----------
-    x : array_like
-        Input vector.
-    name : str
-        Name used in error messages ("a" or "b").
-
-    Returns
-    -------
-    np.ndarray
-        1D array of dtype float.
-
+def _validate_numeric(a, b):
+    r"""
+    Internal helper to validate that inputs are numeric, 1D, and have matching shapes.
+    
     Raises
     ------
-    ValueError
-        If the array is not 1-dimensional.
     TypeError
-        If the input contains non-numeric elements.
+        If inputs are not numeric (e.g., contain strings or objects).
+    ValueError
+        If inputs have different shapes or are not 1-dimensional.
     """
-    # Use np.asarray to handle various input types (list, tuple, np.ndarray)
-    arr = np.asarray(x)
+    # Convert inputs to numpy arrays for inspection
+    a_arr = np.asanyarray(a)
+    b_arr = np.asanyarray(b)
 
-    # Dimensionality check first (so shape errors surface consistently)
-    if arr.ndim != 1:
-        raise ValueError(f"Input array '{name}' must be 1-dimensional; got {arr.ndim}D.")
+    # 1. Strict Numeric Check: Ensures dtypes like <U1 (strings) or object raise TypeError
+    if not (np.issubdtype(a_arr.dtype, np.number) and np.issubdtype(b_arr.dtype, np.number)):
+        raise TypeError("Input arrays must contain numeric values.")
 
-    # Check for non-numeric dtypes (e.g., object from mixed/str, or string dtype)
-    if not np.issubdtype(arr.dtype, np.number):
-        # A more robust check might involve iterating or trying astype, but 
-        # for standard NumPy array-like inputs, this usually catches the issue.
-        # We perform a try-catch for astype below which is the ultimate safeguard.
-        pass
-
-    # Safe cast to float, which raises ValueError/TypeError if elements are non-numeric
-    # (e.g., strings that can't be parsed as floats).
-    try:
-        # Use copy=False to avoid unnecessary copies if the dtype is already float
-        arr = arr.astype(float, copy=False)
-    except (TypeError, ValueError) as e:
-        # Re-raise as TypeError for non-numeric content
-        raise TypeError(f"All elements of '{name}' must be numeric (int or float). "
-                        f"Original error: {e}")
-    
-    return arr
-
-
-def _validate_arrays(a: ArrayLike, b: ArrayLike) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Validate and align two 1D arrays for distance computation.
-
-    This is a helper function to ensure both inputs are valid, 1D, 
-    numeric NumPy arrays of the same shape.
-    """
-    a_arr = _to_1d_float_array(a, "a")
-    b_arr = _to_1d_float_array(b, "b")
-
+    # 2. Shape Mismatch Check
     if a_arr.shape != b_arr.shape:
-        raise ValueError(f"Arrays must have the same shape: a.shape={a_arr.shape}, b.shape={b_arr.shape}.")
+        raise ValueError("Input arrays must have the same shape.")
 
-    return a_arr, b_arr
+    # 3. Dimensionality Check (Strictly 1D vectors for these metrics)
+    if a_arr.ndim != 1 or b_arr.ndim != 1:
+        # Note: Empty arrays np.array([]) are 1D with size 0, so they pass this check.
+        raise ValueError("Inputs must be 1-dimensional vectors.")
 
+    return a_arr.astype(float), b_arr.astype(float)
 
-def euclidean_distance(a: ArrayLike, b: ArrayLike) -> float:
-    """
-    Compute the Euclidean distance between two 1D arrays.
-
-    The Euclidean distance (or L2 norm) is the 'straight-line' distance 
-    between two points in Euclidean space. 
-
+def euclidean_distance(a, b):
+    r"""
+    Compute the Euclidean distance between two 1D numeric vectors.
+    
     The Euclidean distance is defined as:
-    $$d(\mathbf{a}, \mathbf{b}) = \sqrt{\sum_{i} (a_i - b_i)^2}$$
-
-    Parameters
-    ----------
-    a : array_like
-        First input vector (1D NumPy array, list, or tuple of numeric values).
-    b : array_like
-        Second input vector (1D NumPy array, list, or tuple of numeric values).
-
-    Returns
-    -------
-    float
-        The Euclidean distance between vectors `a` and `b`.
-
-    Raises
-    ------
-    TypeError
-        If `a` or `b` contains non-numeric elements.
-    ValueError
-        If `a` or `b` is not 1D or if shapes differ.
-
-    Examples
-    --------
-    >>> import numpy as np
-    >>> euclidean_distance(np.array([0, 0]), np.array([3, 4]))
-    5.0
-    >>> euclidean_distance([1, 2, 3], [1, 2, 3])
-    0.0
+    $d(a, b) = \sqrt{\sum (a_i - b_i)^2}$
     """
-    a_arr, b_arr = _validate_arrays(a, b)
+    a_f, b_f = _validate_numeric(a, b)
     
-    # Implementation using np.linalg.norm for efficiency and numerical stability
-    # The L2 norm of the difference vector (a_arr - b_arr) is the Euclidean distance.
-    return float(np.linalg.norm(a_arr - b_arr))
+    # Handle empty array edge case
+    if a_f.size == 0:
+        return 0.0
+        
+    return np.sqrt(np.sum((a_f - b_f) ** 2))
 
-
-def manhattan_distance(a: ArrayLike, b: ArrayLike) -> float:
-    """
-    Compute the Manhattan (L1) distance between two 1D arrays.
-
-    The Manhattan distance (or L1 norm, taxi-cab distance) is the sum of the 
-    absolute differences of their Cartesian coordinates. 
-
+def manhattan_distance(a, b):
+    r"""
+    Compute the Manhattan distance between two 1D numeric vectors.
+    
     The Manhattan distance is defined as:
-    $$d(\mathbf{a}, \mathbf{b}) = \sum_{i} |a_i - b_i|$$
-
-    Parameters
-    ----------
-    a : array_like
-        First input vector (1D NumPy array, list, or tuple of numeric values).
-    b : array_like
-        Second input vector (1D NumPy array, list, or tuple of numeric values).
-
-    Returns
-    -------
-    float
-        The Manhattan distance between vectors `a` and `b`.
-
-    Raises
-    ------
-    TypeError
-        If `a` or `b` contains non-numeric elements.
-    ValueError
-        If `a` or `b` is not 1D or if shapes differ.
-
-    Examples
-    --------
-    >>> import numpy as np
-    >>> manhattan_distance(np.array([1, 2, 3]), np.array([4, 0, 3]))
-    5.0
-    >>> manhattan_distance([0, 0], [0, 0])
-    0.0
+    $d(a, b) = \sum |a_i - b_i|$
     """
-    a_arr, b_arr = _validate_arrays(a, b)
+    a_f, b_f = _validate_numeric(a, b)
     
-    # Implementation: Sum of the absolute differences
-    return float(np.sum(np.abs(a_arr - b_arr)))
+    # Handle empty array edge case
+    if a_f.size == 0:
+        return 0.0
+        
+    return np.sum(np.abs(a_f - b_f))

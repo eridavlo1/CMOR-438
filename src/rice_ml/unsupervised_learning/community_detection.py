@@ -3,7 +3,7 @@ from typing import Optional, Union, Sequence, Any, Tuple
 from collections import Counter
 
 class LabelPropagation:
-    """
+    r"""
     Community Detection using the Label Propagation Algorithm (LPA).
 
     LPA is a fast, near-linear time algorithm for finding communities (clusters) 
@@ -36,7 +36,7 @@ class LabelPropagation:
         self.n_iter_: int = 0
 
     def fit(self, adjacency_matrix: Union[np.ndarray, Sequence[Sequence[Any]]]) -> "LabelPropagation":
-        """
+        r"""
         Runs the Label Propagation Algorithm on the provided adjacency matrix.
 
         The adjacency matrix must be symmetric (for an undirected graph) and 
@@ -135,7 +135,7 @@ class LabelPropagation:
         return self
 
     def predict(self, adjacency_matrix: Union[np.ndarray, Sequence[Sequence[Any]]]) -> np.ndarray:
-        """
+        r"""
         Runs the Label Propagation Algorithm and returns the community labels.
         (Convenience wrapper for fit().labels_)
         """

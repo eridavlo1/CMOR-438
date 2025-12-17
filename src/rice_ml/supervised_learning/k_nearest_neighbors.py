@@ -14,7 +14,7 @@ ArrayLike = Union[np.ndarray, Sequence[float], Sequence[Sequence[float]]]
 # ----------------------------- Helpers & Validation -----------------------------
 
 def _ensure_2d_float(X: ArrayLike, name: str = "X") -> np.ndarray:
-    """Ensure X is a 2D numeric ndarray of dtype float."""
+    r"""Ensure X is a 2D numeric ndarray of dtype float."""
     arr = np.asarray(X)
     if arr.ndim != 2:
         raise ValueError(f"{name} must be a 2D array; got {arr.ndim}D.")
@@ -32,7 +32,7 @@ def _ensure_2d_float(X: ArrayLike, name: str = "X") -> np.ndarray:
 
 
 def _ensure_1d(y, name: str = "y") -> np.ndarray:
-    """Ensure y is a 1D array (labels may be any dtype for classifier; numeric for regressor)."""
+    r"""Ensure y is a 1D array (labels may be any dtype for classifier; numeric for regressor)."""
     arr = np.asarray(y)
     if arr.ndim != 1:
         raise ValueError(f"{name} must be 1D; got {arr.ndim}D.")
@@ -46,7 +46,7 @@ def _validate_common_params(
     metric: Literal["euclidean", "manhattan"],
     weights: Literal["uniform", "distance"],
 ) -> None:
-    """Validates common KNN hyperparameters."""
+    r"""Validates common KNN hyperparameters."""
     if not isinstance(n_neighbors, (int, np.integer)) or n_neighbors < 1:
         raise ValueError("n_neighbors must be a positive integer.")
     if metric not in ("euclidean", "manhattan"):
@@ -56,7 +56,7 @@ def _validate_common_params(
 
 
 def _pairwise_distances(XA: np.ndarray, XB: np.ndarray, metric: str) -> np.ndarray:
-    """
+    r"""
     Compute pairwise distances between rows of XA and XB.
     """
     if metric == "euclidean":
@@ -76,7 +76,7 @@ def _pairwise_distances(XA: np.ndarray, XB: np.ndarray, metric: str) -> np.ndarr
 
 
 def _neighbors(X_train: np.ndarray, X_query: np.ndarray, n_neighbors: int, metric: str) -> Tuple[np.ndarray, np.ndarray]:
-    """
+    r"""
     Finds the n_neighbors nearest neighbors for each query sample.
     
     Returns (distances, indices) sorted by distance.
@@ -99,7 +99,7 @@ def _neighbors(X_train: np.ndarray, X_query: np.ndarray, n_neighbors: int, metri
 
 
 def _weights_from_distances(dist: np.ndarray, scheme: str, eps: float = 1e-12) -> np.ndarray:
-    """
+    r"""
     Compute neighbor weights from distances.
     """
     if scheme == "uniform":
@@ -125,7 +125,7 @@ def _weights_from_distances(dist: np.ndarray, scheme: str, eps: float = 1e-12) -
 # ---------------------------------- Base ----------------------------------
 
 class _KNNBase:
-    """Shared functionality for KNN models."""
+    r"""Shared functionality for KNN models."""
 
     def __init__(
         self,
@@ -144,7 +144,7 @@ class _KNNBase:
     # ---------------- API ----------------
 
     def fit(self, X: ArrayLike, y: ArrayLike):
-        """Fit the model."""
+        r"""Fit the model."""
         X_arr = _ensure_2d_float(X, "X")
         y_arr = _ensure_1d(y, "y")
         if len(y_arr) != X_arr.shape[0]:
@@ -162,7 +162,7 @@ class _KNNBase:
         return self._X, self._y
 
     def kneighbors(self, X: ArrayLike) -> Tuple[np.ndarray, np.ndarray]:
-        """Find the nearest neighbors of the provided samples."""
+        r"""Find the nearest neighbors of the provided samples."""
         X_train, _ = self._check_is_fitted()
         Xq = _ensure_2d_float(X, "X")
         if Xq.shape[1] != X_train.shape[1]:
@@ -173,7 +173,7 @@ class _KNNBase:
 # -------------------------------- Classifier --------------------------------
 
 class KNNClassifier(_KNNBase):
-    """
+    r"""
     k-Nearest Neighbors classifier.
     """
 
@@ -193,7 +193,7 @@ class KNNClassifier(_KNNBase):
         return self
 
     def predict_proba(self, X: ArrayLike) -> np.ndarray:
-        """Predict class probabilities."""
+        r"""Predict class probabilities."""
         X_train, y_train = self._check_is_fitted()
         if self.classes_ is None:
             raise RuntimeError("Model is not fitted.")
@@ -225,13 +225,13 @@ class KNNClassifier(_KNNBase):
         return proba
 
     def predict(self, X: ArrayLike) -> np.ndarray:
-        """Predict the most probable class."""
+        r"""Predict the most probable class."""
         proba = self.predict_proba(X)
         best = np.argmax(proba, axis=1)
         return self.classes_[best]
 
     def score(self, X: ArrayLike, y: ArrayLike) -> float:
-        """Classification accuracy on (X, y)."""
+        r"""Classification accuracy on (X, y)."""
         y_true = _ensure_1d(y, "y")
         y_pred = self.predict(X)
         if len(y_true) != len(y_pred):
@@ -242,7 +242,7 @@ class KNNClassifier(_KNNBase):
 # -------------------------------- Regressor --------------------------------
 
 class KNNRegressor(_KNNBase):
-    """
+    r"""
     k-Nearest Neighbors regressor.
     """
 
@@ -266,7 +266,7 @@ class KNNRegressor(_KNNBase):
         return self
 
     def predict(self, X: ArrayLike) -> np.ndarray:
-        """Predict regression targets (weighted average of neighbors)."""
+        r"""Predict regression targets (weighted average of neighbors)."""
         X_train, y_train = self._check_is_fitted()
         Xq = _ensure_2d_float(X, "X")
         
@@ -292,7 +292,7 @@ class KNNRegressor(_KNNBase):
         return y_pred.astype(float, copy=False)
 
     def score(self, X, y) -> float:
-        """Compute the R^2 score."""
+        r"""Compute the R^2 score."""
         y_true = np.asarray(y, dtype=float)
         y_pred = self.predict(X)
         

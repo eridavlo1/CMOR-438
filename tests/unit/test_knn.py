@@ -5,7 +5,7 @@ from rice_ml.supervised_learning.k_nearest_neighbors import KNNClassifier, KNNRe
 # ---- Classifier Tests -----
 
 def test_classifier_basic_predict_and_proba_uniform_euclidean():
-    """Test standard prediction, probability output format, and classification logic."""
+    r"""Test standard prediction, probability output format, and classification logic."""
     X = np.array([[0,0],[0,1],[1,0],[1,1]], dtype=float)
     y = np.array([0,0,1,1])
     clf = KNNClassifier(n_neighbors=3, metric="euclidean", weights="uniform").fit(X, y)
@@ -25,7 +25,7 @@ def test_classifier_basic_predict_and_proba_uniform_euclidean():
 
 
 def test_classifier_manhattan_distance_weighted():
-    """Test distance-weighted voting with Manhattan metric."""
+    r"""Test distance-weighted voting with Manhattan metric."""
     X = np.array([[0,0],[2,0],[0,2],[2,2]], dtype=float)
     y = np.array(["A","A","B","B"], dtype=object)
     
@@ -39,7 +39,7 @@ def test_classifier_manhattan_distance_weighted():
 
 
 def test_classifier_errors_and_kneighbors():
-    """Test runtime errors and the kneighbors method output shape."""
+    r"""Test runtime errors and the kneighbors method output shape."""
     X = np.array([[0,0],[1,1],[2,2]], dtype=float)
     y = np.array([0,1,1])
     clf = KNNClassifier(n_neighbors=2).fit(X, y)
@@ -63,7 +63,7 @@ def test_classifier_errors_and_kneighbors():
 
 
 def test_classifier_score_accuracy():
-    """Test that the score method returns correct accuracy."""
+    r"""Test that the score method returns correct accuracy."""
     X = np.array([[0,0],[0,1],[1,0],[1,1]], dtype=float)
     y = np.array([0,0,1,1])
     clf = KNNClassifier(n_neighbors=1).fit(X, y)
@@ -77,7 +77,7 @@ def test_classifier_score_accuracy():
 # ---- Regressor Tests -----
 
 def test_regressor_basic_predict_and_r2_score():
-    """Test prediction for regression and R^2 score calculation."""
+    r"""Test prediction for regression and R^2 score calculation."""
     X = np.array([[0],[1],[2],[3]], dtype=float)
     y = np.array([0.0, 1.0, 1.5, 3.0])
     
@@ -90,7 +90,7 @@ def test_regressor_basic_predict_and_r2_score():
 
 
 def test_regressor_constant_y_score_error():
-    """Tests handling of constant y_true (R^2 definition)."""
+    r"""Tests handling of constant y_true (R^2 definition)."""
     X = np.array([[0],[1],[2]], dtype=float)
     y = np.array([5.0, 5.0, 5.0])
     reg = KNNRegressor(n_neighbors=1).fit(X, y)

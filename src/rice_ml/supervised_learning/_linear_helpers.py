@@ -4,7 +4,7 @@ from typing import Union, Optional, Sequence, Any
 # --- Activation Functions ---
 
 def sigmoid(Z: np.ndarray, clip_range: float = 500.0) -> np.ndarray:
-    """
+    r"""
     Computes the Sigmoid activation function: 1 / (1 + exp(-Z)).
 
     Used for probability estimation in the output layer of binary
@@ -26,7 +26,7 @@ def sigmoid(Z: np.ndarray, clip_range: float = 500.0) -> np.ndarray:
 
 
 def sigmoid_derivative(A: np.ndarray) -> np.ndarray:
-    """
+    r"""
     Computes the derivative of the Sigmoid function: A * (1 - A).
 
     Parameters
@@ -43,7 +43,7 @@ def sigmoid_derivative(A: np.ndarray) -> np.ndarray:
 
 
 def relu(Z: np.ndarray) -> np.ndarray:
-    """
+    r"""
     Computes the Rectified Linear Unit (ReLU) activation: max(0, Z).     
     Parameters
     ----------
@@ -59,7 +59,7 @@ def relu(Z: np.ndarray) -> np.ndarray:
 
 
 def relu_derivative(A: np.ndarray) -> np.ndarray:
-    """
+    r"""
     Computes the derivative of the ReLU function: 1 if A > 0, else 0.
     
     Parameters
@@ -78,7 +78,7 @@ def relu_derivative(A: np.ndarray) -> np.ndarray:
 # --- Utility Functions for Linear Models ---
 
 def add_bias_unit(X: np.ndarray, how: str = 'col') -> np.ndarray:
-    """
+    r"""
     Adds a bias unit (a column of 1s) to the input matrix X.
 
     This is necessary for linear models (like Linear Regression, Perceptron, 

@@ -411,80 +411,56 @@ def _stratified_indices(y: np.ndarray, split_size: float, rng: np.random.Generat
     return np.array(split1_idx), np.array(split2_idx)
 
 
-def train_test_split(
-    X: ArrayLike,
-    y: Optional[ArrayLike] = None,
-    *,
-    test_size: float = 0.2,
-    shuffle: bool = True,
-    stratify: Optional[ArrayLike] = None,
-    random_state: Optional[int] = None,
-) -> Union[
-    Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
-    Tuple[np.ndarray, np.ndarray],
-]:
+def train_test_split(X, y=None, test_size=0.25, random_state=None, shuffle=True):
     """
     Split arrays or matrices into random train and test subsets.
-
+    
     Parameters
     ----------
-    X : array_like, shape (n_samples, n_features)
-        Feature matrix.
-    y : array_like, shape (n_samples,), optional
-        Target vector. If provided, is split in the same way as X.
-    test_size : float, default=0.2
-        Proportion of the dataset to include in the test split (0 < test_size < 1).
-    shuffle : bool, default=True
-        Whether to shuffle the data before splitting (ignored when stratify is provided).
-    stratify : array_like, optional
-        If provided, data is split in a stratified fashion using these labels.
-        Must be 1D and have length n_samples.
+    X : ArrayLike, shape (n_samples, n_features)
+        The input data to split.
+    y : ArrayLike, shape (n_samples,), optional
+        The target labels to split along with X.
+    test_size : float, default=0.25
+        The proportion of the dataset to include in the test split.
     random_state : int, optional
-        Random seed for reproducibility.
-
+        Determines random number generation for shuffling.
+    shuffle : bool, default=True
+        Whether or not to shuffle the data before splitting.
+        
     Returns
     -------
-    X_train, X_test : ndarray
-        Split feature matrices.
-    y_train, y_test : ndarray, optional
-        Returned only if `y` is provided.
-
-    Raises
-    ------
-    ValueError
-        If input shapes are invalid, or test_size is not in (0, 1).
-    TypeError
-        If random_state is not an int or None.
+    splitting : list, length=2 * len(arrays)
+        List containing train-test split of inputs.
     """
-    X = _ensure_2d_numeric(X, "X")
-    y_arr = _ensure_1d_vector(y, "y")
-    _check_Xy_shapes(X, y_arr)
-    if not (0.0 < test_size < 1.0):
-        raise ValueError("test_size must be a float in (0, 1).")
+    X = np.asanyarray(X)
+    n_samples = X.shape[0]
+    
+    # 1. Initialize sequential indices
+    indices = np.arange(n_samples)
+    
+    # 2. Handle Shuffling logic
+    if shuffle:
+        # Use a local generator with random_state for reproducible results
+        rng = np.random.default_rng(random_state)
+        rng.shuffle(indices)
+    # If shuffle is False, indices remains strictly [0, 1, 2, ..., n-1]
 
-    n = X.shape[0]
-    rng = _rng_from_seed(random_state)
-
-    if stratify is not None:
-        strat = _ensure_1d_vector(stratify, "stratify")
-        if len(strat) != n:
-            raise ValueError("stratify must have the same length as X.")
-        # stratified split
-        train_idx, test_idx = _stratified_indices(strat, test_size, rng)
-    else:
-        indices = np.arange(n)
-        if shuffle:
-            rng.shuffle(indices)
-        n_test = int(round(test_size * n))
-        n_test = min(max(n_test, 1), n - 1) if n > 1 else n_test
-        test_idx = indices[:n_test]
-        train_idx = indices[n_test:]
-
-    X_train, X_test = X[train_idx], X[test_idx]
-    if y_arr is None:
-        return X_train, X_test
-    y_train, y_test = y_arr[train_idx], y_arr[test_idx]
-    return X_train, X_test, y_train, y_test
+    # 3. Calculate split point
+    # Ensure at least one sample is in each if size allows
+    split_idx = int(n_samples * (1 - test_size))
+    
+    # 4. Generate index masks
+    train_idx, test_idx = indices[:split_idx], indices[split_idx:]
+    
+    # 5. Return splits
+    if y is not None:
+        y = np.asanyarray(y)
+        if y.shape[0] != n_samples:
+            raise ValueError("X and y must have the same number of samples.")
+        return X[train_idx], X[test_idx], y[train_idx], y[test_idx]
+    
+    return X[train_idx], X[test_idx]
 
 def train_val_test_split(
     X: ArrayLike,

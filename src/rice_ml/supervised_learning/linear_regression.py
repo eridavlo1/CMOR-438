@@ -5,7 +5,7 @@ import warnings
 
 
 class LinearRegression:
-    """
+    r"""
     A comprehensive Linear Regression model supporting OLS, Ridge, and Gradient Descent.
 
     Parameters
@@ -36,11 +36,11 @@ class LinearRegression:
         self.cost_history_: List[float] = []  # Cost history for GD
 
     def _add_intercept_column(self, X: np.ndarray) -> np.ndarray:
-        """Adds a column of ones to X for intercept calculation."""
+        r"""Adds a column of ones to X for intercept calculation."""
         return np.hstack((X, np.ones((X.shape[0], 1))))
 
     def _fit_closed_form(self, X_biased: np.ndarray, y: np.ndarray):
-        """Fits using the analytical solution (OLS or Ridge)."""
+        r"""Fits using the analytical solution (OLS or Ridge)."""
         n_features_biased = X_biased.shape[1]
         
         # 1. Calculate X_biased.T @ X_biased
@@ -71,7 +71,7 @@ class LinearRegression:
         self.b_ = W_full[-1]
 
     def _fit_gradient_descent(self, X: np.ndarray, y: np.ndarray):
-        """Fits using Batch Gradient Descent (reusing prior GD logic)."""
+        r"""Fits using Batch Gradient Descent (reusing prior GD logic)."""
         if self.random_state is not None:
             np.random.seed(self.random_state)
             
@@ -100,7 +100,7 @@ class LinearRegression:
             self.cost_history_.append(cost)
 
     def fit(self, X: Union[np.ndarray, Sequence], y: Union[np.ndarray, Sequence]) -> "LinearRegression":
-        """
+        r"""
         Trains the Linear Regression model using the specified method.
         """
         X_arr = np.asarray(X, dtype=float)
@@ -121,7 +121,7 @@ class LinearRegression:
         return self
 
     def predict(self, X: Union[np.ndarray, Sequence]) -> np.ndarray:
-        """Predicts continuous target values."""
+        r"""Predicts continuous target values."""
         if self.w_ is None or self.b_ is None:
             raise RuntimeError("Model is not fitted. Call fit(X, y) first.")
             
@@ -132,7 +132,7 @@ class LinearRegression:
         return X_arr @ self.w_ + self.b_
 
     def score(self, X: Union[np.ndarray, Sequence], y: Union[np.ndarray, Sequence]) -> float:
-        """Returns the coefficient of determination (R^2) of the prediction."""
+        r"""Returns the coefficient of determination (R^2) of the prediction."""
         if self.w_ is None:
             raise RuntimeError("Model is not fitted. Call fit(X, y) first.")
             

@@ -6,7 +6,7 @@ from ..utils.validation import ArrayLike, ensure_2d_numeric, ensure_1d_vector
 # --- Helper Definitions ---
 
 def _get_neighbors(data: np.ndarray, query_idx: int, eps: float) -> np.ndarray:
-    """
+    r"""
     Retrieves the indices of points within the epsilon-neighborhood of a given point.
     """
     diff = data - data[query_idx]
@@ -17,7 +17,7 @@ def _get_neighbors(data: np.ndarray, query_idx: int, eps: float) -> np.ndarray:
 # --- DBSCAN Algorithm Implementation ---
 
 class DBSCAN:
-    """
+    r"""
     DBSCAN (Density-Based Spatial Clustering of Applications with Noise) algorithm.
     
     Identifies clusters based on density and can discover arbitrarily shaped 
@@ -49,7 +49,7 @@ class DBSCAN:
         self._n_samples: int = 0
 
     def _expand_cluster(self, X: np.ndarray, labels: np.ndarray, core_idx: int, cluster_id: int) -> None:
-        """
+        r"""
         Recursively adds all density-reachable points to the current cluster.
         """
         labels[core_idx] = cluster_id
@@ -71,7 +71,7 @@ class DBSCAN:
                             queue.append(neighbor_idx)
         
     def fit(self, X: ArrayLike) -> "DBSCAN":
-        """
+        r"""
         Performs DBSCAN clustering on the input data.
         """
         X_arr = ensure_2d_numeric(X)
@@ -98,7 +98,7 @@ class DBSCAN:
         return self
 
     def predict(self, X: ArrayLike) -> np.ndarray:
-        """Convenience method to fit and return the labels."""
+        r"""Convenience method to fit and return the labels."""
         self.fit(X)
         if self.labels_ is None:
              raise RuntimeError("Clustering failed.")

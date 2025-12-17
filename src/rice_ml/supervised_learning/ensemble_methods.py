@@ -11,7 +11,7 @@ from .regression_trees import DecisionTreeRegressor
 
 
 def _aggregate_predictions(y_preds: np.ndarray, mode: str) -> np.ndarray:
-    """Aggregates predictions (rows) from multiple models (columns)."""
+    r"""Aggregates predictions (rows) from multiple models (columns)."""
     
     if mode == 'hard_vote':
         # Used by Classifier: find the mode (most frequent) label for each sample
@@ -32,13 +32,13 @@ def _aggregate_predictions(y_preds: np.ndarray, mode: str) -> np.ndarray:
 
 # --- Internal Helper for Bootstrap Indices ---
 def _get_bootstrap_indices(n_samples: int, rng: np.random.Generator) -> np.ndarray:
-    """Generates indices for a bootstrap sample (sampling with replacement)."""
+    r"""Generates indices for a bootstrap sample (sampling with replacement)."""
     return rng.choice(n_samples, size=n_samples, replace=True)
 
 # --- Base Bagging Class (Abstracted Logic) ---
 
 class _BaseBagging:
-    """Base class providing the shared logic for BaggingClassifier and BaggingRegressor."""
+    r"""Base class providing the shared logic for BaggingClassifier and BaggingRegressor."""
     
     def __init__(self, base_estimator: Any, n_estimators: int, random_state: Optional[int], aggregation_mode: str):
         self.base_estimator = base_estimator
@@ -48,7 +48,7 @@ class _BaseBagging:
         self.estimators_: List[Any] = []
         
     def fit(self, X: ArrayLike, y: ArrayLike) -> "_BaseBagging":
-        """
+        r"""
         Fits the ensemble by training each estimator on a bootstrap sample of the data.
         """
         X_arr = ensure_2d_numeric(X)
@@ -76,7 +76,7 @@ class _BaseBagging:
         return self
 
     def predict(self, X: ArrayLike) -> np.ndarray:
-        """
+        r"""
         Predicts using the specified aggregation mode (hard_vote or average).
         """
         X_arr = ensure_2d_numeric(X)
@@ -91,7 +91,7 @@ class _BaseBagging:
 # ----- 1. Hard Voting Classifier (For pre-fitted models) -----
 
 class HardVotingClassifier:
-    """
+    r"""
     Implements a Hard Voting classifier (majority vote). 
 
     Parameters
@@ -104,7 +104,7 @@ class HardVotingClassifier:
         self.classes_ = None
 
     def fit(self, X: ArrayLike, y: ArrayLike) -> "HardVotingClassifier":
-        """Fits all base estimators on the provided data."""
+        r"""Fits all base estimators on the provided data."""
         X_arr = ensure_2d_numeric(X)
         y_arr = ensure_1d_vector(y)
         check_Xy_shapes(X_arr, y_arr)
@@ -117,7 +117,7 @@ class HardVotingClassifier:
         return self
 
     def predict(self, X: ArrayLike) -> np.ndarray:
-        """Predicts the class label based on the majority vote from all estimators."""
+        r"""Predicts the class label based on the majority vote from all estimators."""
         X_arr = ensure_2d_numeric(X)
         
         if not self.estimators:
@@ -133,7 +133,7 @@ class HardVotingClassifier:
 # ----- 2. Bagging Classifier ------
 
 class BaggingClassifier(_BaseBagging):
-    """
+    r"""
     Implements a Bagging (Bootstrap Aggregating) classifier. 
     
     Parameters
@@ -168,7 +168,7 @@ class BaggingClassifier(_BaseBagging):
 # ----- 3. Bagging Regressor ------
 
 class BaggingRegressor(_BaseBagging):
-    """
+    r"""
     Implements a Bagging (Bootstrap Aggregating) regressor.
     """
     
@@ -189,7 +189,7 @@ class BaggingRegressor(_BaseBagging):
 # ----- 4. Random Forest Classifier -----
 
 class RandomForestClassifier(BaggingClassifier):
-    """
+    r"""
     Implements a Random Forest classifier (specialized Bagging). 
 
     Random Forests combine bootstrapping (from Bagging) with random feature selection
@@ -229,7 +229,7 @@ class RandomForestClassifier(BaggingClassifier):
 # ----- 5. Random Forest Regressor -----
 
 class RandomForestRegressor(BaggingRegressor):
-    """
+    r"""
     Implements a Random Forest regressor (specialized BaggingRegressor). 
     """
     def __init__(self, n_estimators: int = 100, max_depth: Optional[int] = None, 

@@ -22,7 +22,7 @@ from rice_ml.processing import (
 # ----- Classification: Binary Metrics -----
 
 def test_binary_basic_metrics():
-    """Tests accuracy, precision, recall, F1, and confusion matrix for a basic binary case."""
+    r"""Tests accuracy, precision, recall, F1, and confusion matrix for a basic binary case."""
     y_true = np.array([0, 1, 1, 0])
     y_pred = np.array([0, 1, 0, 0])
     
@@ -48,7 +48,7 @@ def test_binary_basic_metrics():
 
 
 def test_roc_auc_and_log_loss_binary():
-    """Tests probability-based metrics (ROC AUC and Log Loss)."""
+    r"""Tests probability-based metrics (ROC AUC and Log Loss)."""
     y_true = np.array([0, 0, 1, 1])
     # Rank scores: 0.1(1), 0.35(2), 0.4(3), 0.8(4)
     # Ranks for positives (y=1): 2 (0.35) and 4 (0.8) -> Sum = 6
@@ -66,7 +66,7 @@ def test_roc_auc_and_log_loss_binary():
 
 
 def test_log_loss_multiclass_perfect_score():
-    """Tests log loss for perfect multiclass prediction (should be 0)."""
+    r"""Tests log loss for perfect multiclass prediction (should be 0)."""
     y_true = np.array([0, 1, 2])
     # 2D probabilities (one-hot encoding of true labels)
     probs = np.eye(3) 
@@ -75,7 +75,7 @@ def test_log_loss_multiclass_perfect_score():
 
 
 def test_binary_metric_errors():
-    """Tests expected ValueError/TypeError in classification metrics."""
+    r"""Tests expected ValueError/TypeError in classification metrics."""
     # 1. binary average with > 2 unique classes
     with pytest.raises(ValueError, match="binary average requires exactly two classes"):
         precision_score([0, 1, 2], [0, 1, 2], average="binary")
@@ -92,7 +92,7 @@ def test_binary_metric_errors():
 # -------------------- Classification: Multiclass Metrics --------------------
 
 def test_multiclass_macro_micro():
-    """Tests macro and micro averaging for precision, recall, F1."""
+    r"""Tests macro and micro averaging for precision, recall, F1."""
     y_true = np.array([0, 1, 2, 2])
     y_pred = np.array([0, 2, 2, 1])
 
@@ -121,7 +121,7 @@ def test_multiclass_macro_micro():
 
 
 def test_confusion_with_custom_labels_ignores_unknown():
-    """Tests confusion matrix behavior when labels are explicitly passed."""
+    r"""Tests confusion matrix behavior when labels are explicitly passed."""
     y_true = np.array([0, 1, 2, 2])
     y_pred = np.array([0, 3, 2, 1])
     
@@ -140,7 +140,7 @@ def test_confusion_with_custom_labels_ignores_unknown():
 # ---- Regression Metrics ----
 
 def test_regression_metrics():
-    """Tests MSE, RMSE, MAE, and R^2 for a standard regression case."""
+    r"""Tests MSE, RMSE, MAE, and R^2 for a standard regression case."""
     y_true = np.array([3.0, -0.5, 2.0, 7.0])
     y_pred = np.array([2.5, 0.0, 2.0, 8.0])
     
@@ -158,7 +158,7 @@ def test_regression_metrics():
 
 
 def test_regression_shape_type_errors():
-    """Tests expected ValueError/TypeError in regression metrics."""
+    r"""Tests expected ValueError/TypeError in regression metrics."""
     # 1. Shape mismatch
     with pytest.raises(ValueError, match="same length"):
         mse([1, 2], [1])
