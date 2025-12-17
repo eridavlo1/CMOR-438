@@ -1,7 +1,11 @@
 # Ensemble Methods (Bagging and Random Forests)
+
 This package contains implementations of ensemble learning techniques, which combine multiple base models (estimators) to improve overall performance, robustness, and generalization capability.
+
 ## Core Algorithms
+
 We focus on **Bootstrap Aggregating (Bagging)** and its most famous application, the **Random Forest**.
+
 ### 1. Bootstrap Aggregating (Bagging)
 
 Bagging trains multiple instances of the same base estimator (often a decision tree) on different subsets of the training data, where each subset is created by **sampling with replacement** (bootstrapping).
@@ -35,7 +39,8 @@ The ensemble methods rely entirely on the data requirements of their base estima
 
 ### Input Features ($\mathbf{X}$)
 
-* **Format:** Requires a 2D array or similar structure, where rows are samples and columns are features (shape: $(N_{samples}, N_{features})$).
+* **Format:** Requires a 2D array or similar structure, where rows are samples and columns are feature\
+    shape: $(N_{samples}, N_{features})$.
 * **Type:** Features must be entirely **numeric** (float or integer) as ensemble methods use thresholding for splitting. Categorical features must be one-hot encoded or label encoded prior to use.
 
 ### Labels ($\mathbf{Y}$)
@@ -47,5 +52,5 @@ The ensemble methods rely entirely on the data requirements of their base estima
 
 The primary preprocessing required for these algorithms is standard data validation and splitting:
 
-1.  **Splitting:** Use `train_test_split` to separate the data into training and testing sets.
-2.  **Validation:** Input arrays must be validated using `ensure_2d_numeric`, `ensure_1d_vector`, and `check_Xy_shapes` (handled internally by the `fit` method).
+1. **Splitting:** Use `train_test_split` to separate the data into training and testing sets.
+2. **Validation:** Input arrays must be validated using `ensure_2d_numeric`, `ensure_1d_vector`, and `check_Xy_shapes` (handled internally by the `fit` method).
