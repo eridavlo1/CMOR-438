@@ -105,17 +105,19 @@ def r2_score(y_true, y_pred):
     r"""
     Compute R^2 (coefficient of determination) regression score.
     """
+    # Force conversion to float64 to maintain precision
     yt = _ensure_1d_numeric(y_true, "y_true")
     yp = _ensure_1d_numeric(y_pred, "y_pred")
     
-    # Residual sum of squares
+    # Residual sum of squares (SS_res)
     ss_res = np.sum((yt - yp) ** 2)
-    # Total sum of squares
+    # Total sum of squares (SS_tot)
     ss_tot = np.sum((yt - np.mean(yt)) ** 2)
     
     if ss_tot == 0:
         if ss_res < 1e-12: 
             return 1.0
+        # This matches the regex expected in test_regression_shape_type_errors
         raise ValueError("is undefined when y_true is constant")
         
     # Standard formula to ensure compatibility with test expectations
